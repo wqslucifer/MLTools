@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DataWidget</class>
+ <widget class="QWidget" name="DataWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1080</width>
+    <height>657</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QWidget" name="gridLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>20</y>
+     <width>1051</width>
+     <height>621</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridLayout" columnstretch="1,8">
+    <item row="0" column="1">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="10,3">
+      <item>
+       <widget class="QTabWidget" name="mainTabWidget">
+        <widget class="QWidget" name="dataExplorer">
+         <attribute name="title">
+          <string>Tab 1</string>
+         </attribute>
+         <widget class="QListWidget" name="listWidget">
+          <property name="geometry">
+           <rect>
+            <x>-5</x>
+            <y>1</y>
+            <width>921</width>
+            <height>441</height>
+           </rect>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QWidget" name="tab_2">
+         <attribute name="title">
+          <string>Tab 2</string>
+         </attribute>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTabWidget" name="outputTabWidget">
+        <property name="currentIndex">
+         <number>1</number>
+        </property>
+        <widget class="QWidget" name="output">
+         <attribute name="title">
+          <string>Tab 1</string>
+         </attribute>
+         <widget class="QPlainTextEdit" name="outputTextEdit">
+          <property name="geometry">
+           <rect>
+            <x>80</x>
+            <y>10</y>
+            <width>771</width>
+            <height>91</height>
+           </rect>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QWidget" name="tab_8">
+         <attribute name="title">
+          <string>Tab 2</string>
+         </attribute>
+        </widget>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="0">
+     <widget class="QToolBox" name="toolBox">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="dataProcess">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>116</width>
+         <height>565</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Page 1</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="dataVisualize">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>116</width>
+         <height>565</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Page 2</string>
+       </attribute>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
