@@ -357,7 +357,14 @@ class AddFileDialog(QDialog):
         self.addScriptLayout.addWidget(self.addScriptButton)
         self.addScriptButton.clicked.connect(self.addScriptDialog)
         # add result
-
+        self.addResultLayout = QHBoxLayout(self)
+        self.addResultLayout.addWidget(QLabel("Result: "))
+        self.addResultLayout.addSpacing(20)
+        self.addResultEdit = QLineEdit(self)
+        self.addResultButton = QPushButton("Browse", self)
+        self.addResultLayout.addWidget(self.addResultEdit)
+        self.addResultLayout.addWidget(self.addResultButton)
+        self.addResultButton.clicked.connect(self.addResultDialog)
         # add log
         # Ok button
         self.buttonBoxLayout = QHBoxLayout(self)
@@ -377,11 +384,13 @@ class AddFileDialog(QDialog):
         self.mainLayout.addLayout(self.addDataLayout, 0, 0)
         self.mainLayout.addLayout(self.addModelLayout, 1, 0)
         self.mainLayout.addLayout(self.addScriptLayout, 2, 0)
-        self.mainLayout.addLayout(self.buttonBoxLayout, 3, 0, Qt.AlignBottom)
+        self.mainLayout.addLayout(self.addResultLayout, 3, 0)
+        self.mainLayout.addLayout(self.buttonBoxLayout, 4, 0, Qt.AlignBottom)
         self.mainLayout.setRowStretch(0, 3)
         self.mainLayout.setRowStretch(1, 3)
         self.mainLayout.setRowStretch(2, 3)
-        self.mainLayout.setRowStretch(3, 10)
+        self.mainLayout.setRowStretch(3, 3)
+        self.mainLayout.setRowStretch(4, 10)
 
         self.okButton.clicked.connect(self.confirm)
         self.cancelButton.clicked.connect(self.cancel)
@@ -389,6 +398,7 @@ class AddFileDialog(QDialog):
         self.dataFiles = None
         self.modelFiles = None
         self.scriptFiles = None
+        self.resultFiles = None
 
     def addDataDialog(self):
         if not self.MLProject:
@@ -451,6 +461,26 @@ class AddFileDialog(QDialog):
         s = s[:-1]
         self.addScriptEdit.setText(s)
 
+    def addResultDialog(self):
+        if not self.MLProject:
+            QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
+            return
+        dialog = QFileDialog()
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileTypes = "Result File (*.mlr)"
+        if os.path.exists(os.path.join(self.MLProject.projectDir, 'result')):
+            dialog.setDirectory(os.path.join(self.MLProject.projectDir, 'result'))
+        else:
+            dialog.setDirectory(self.MLProject.projectDir)
+        self.resultFiles, _ = dialog.getOpenFileNames(self, "Add result Files", "", fileTypes,
+                                                      options=options)  # return list
+        s = ''
+        for f in self.resultFiles:
+            s += (os.path.basename(f) + ',')
+        s = s[:-1]
+        self.addResultEdit.setText(s)
+
     def confirm(self):
         if self.dataFiles:
             for file in self.dataFiles:
@@ -466,6 +496,11 @@ class AddFileDialog(QDialog):
             for file in self.scriptFiles:
                 if file not in self.MLProject.scriptFiles:
                     self.MLProject.scriptFiles.append(file)
+        if self.resultFiles:
+            for file in self.resultFiles:
+                if file not in self.MLProject.resultFiles:
+                    self.MLProject.resultFiles.append(file)
+
         self.done(QDialog.Accepted)
         self.MLProject.dumpProject(self.MLProject.projectFile)
 
