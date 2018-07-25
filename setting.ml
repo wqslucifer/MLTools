@@ -1,1 +1,1 @@
-{"projectOpenHistory": {"MLTest": ["Mon Jul 23 16:39:03 2018", "E:\\project\\MLTest", "E:\\project\\MLTest\\MLTest.mlproj"]}}
+{"projectOpenHistory": {"MLTest": ["Tue Jul 24 23:47:26 2018", "E:\\project\\MLTest", "E:\\project\\MLTest\\MLTest.mlproj"]}}

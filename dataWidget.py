@@ -1,11 +1,13 @@
 import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
-    QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem
+    QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit,QSpinBox,QDoubleSpinBox
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath
 from PyQt5 import QtWidgets
+from SwitchButton import switchButton
 import pandas as pd
+import numpy as np
 
 
 class DataTabWidget(QWidget):
@@ -13,11 +15,13 @@ class DataTabWidget(QWidget):
         super(DataTabWidget, self).__init__()
         # local data
         self.dataFrame = None
-        self.verticalHeaderWidth = 50
+        self.verticalHeaderWidth = 75
         # init widgets
         self.mainLayout = QGridLayout(self)
         self.rightLayout = QVBoxLayout(self)
         self.toolset = QToolBox(self)
+        self.tools_highLight = QWidget(self)
+        self.tools_dataInfo = QWidget(self)
         self.tools_process = QWidget(self)
         self.tools_visualize = QWidget(self)
 
@@ -35,6 +39,10 @@ class DataTabWidget(QWidget):
         self.initStatistic()
 
     def initUI(self):
+        self.highLightSetting()
+        self.initToolDataInfo()
+        self.toolset.addItem(self.tools_highLight, 'Setting')
+        self.toolset.addItem(self.tools_dataInfo, 'Data Info')
         self.toolset.addItem(self.tools_process, 'Data Process')
         self.toolset.addItem(self.tools_visualize, 'Data Visualize')
         # init data window
@@ -56,6 +64,39 @@ class DataTabWidget(QWidget):
         self.mainLayout.setColumnStretch(0, 2)
         self.mainLayout.setColumnStretch(1, 10)
 
+    def highLightSetting(self):
+        layout = QVBoxLayout(self)
+        self.tools_highLight.setLayout(layout)
+
+        # init object
+        NA_Threshold = 0
+        NA_ThresholdEdit = QDoubleSpinBox (self)
+        NA_ThresholdEdit.setSingleStep(5.0)
+        NA_ThresholdEdit.setValue(NA_Threshold)
+        NA_ThresholdEdit.setSuffix('%')
+        NA_ThresholdEdit.setMaximumSize(85, 25)
+        NA_ThresholdLayout = QHBoxLayout(self)
+        NA_ThresholdLayout.addWidget(QLabel('NA %: '))
+        NA_ThresholdLayout.addWidget(NA_ThresholdEdit)
+        # switch
+        switch = switchButton()
+        switchLayout = QHBoxLayout(self)
+        switchLayout.addWidget(QLabel('NA'))
+        switchLayout.addWidget(switch)
+        switch.toggled.connect(self.onToggledTest)
+        resetButton = QPushButton('reset', self)
+        # add object
+        # layout.setAlignment(Qt.AlignTop)
+        layout.addLayout(NA_ThresholdLayout)
+        layout.addLayout(switchLayout)
+        layout.addWidget(resetButton)
+
+
+    def initToolDataInfo(self):
+        layout = QVBoxLayout(self)
+        self.tools_dataInfo.setLayout(layout)
+        layout.addWidget(QLabel('File Name:'))
+
     def initDataExplorer(self, filename):
         # load data
         self.dataFrame = pd.read_csv(filename)
@@ -70,29 +111,74 @@ class DataTabWidget(QWidget):
 
     def initStatistic(self):
         rowCount = 0
-        self.statistic.insertRow(rowCount)
-        self.statistic.setColumnCount(self.dataFrame.shape[1])
-        self.statistic.setVerticalHeaderLabels(['Count'])
         self.statistic.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
+        self.statistic.setColumnCount(self.dataFrame.shape[1])
         self.statistic.setHorizontalHeaderLabels(self.dataFrame.columns.tolist())
-        self.statistic.setItem(rowCount, 0, QTableWidgetItem(str(self.dataFrame['Id'].count())))
-        rowCount+=1
+        # Type
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            self.statistic.setItem(rowCount, i, QTableWidgetItem(str(np.sum(self.dataFrame[c].dtype))))
+        rowCount += 1
+        # count NA
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            self.statistic.setItem(rowCount, i, QTableWidgetItem(str(np.sum(self.dataFrame[c].isnull()))))
+        rowCount += 1
+        # NA percentage
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            self.statistic.setItem(rowCount, i, QTableWidgetItem(str(np.sum(self.dataFrame[c].isnull())/self.dataFrame.shape[0])))
+        rowCount += 1
+        # mean
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            if self.dataFrame[c].dtype == 'object':
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str('N/A')))
+            else:
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].mean())))
+        rowCount += 1
+        # std
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            if self.dataFrame[c].dtype == 'object':
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str('N/A')))
+            else:
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].std())))
+        rowCount += 1
+        # max
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            if self.dataFrame[c].dtype == 'object':
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str('N/A')))
+            else:
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].max())))
+        rowCount += 1
+        # min
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            if self.dataFrame[c].dtype == 'object':
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str('N/A')))
+            else:
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].min())))
+        rowCount += 1
+        # skew
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            if self.dataFrame[c].dtype == 'object':
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str('N/A')))
+            else:
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].skew())))
+        rowCount += 1
+        # Kurtosis
+        self.statistic.insertRow(rowCount)
+        for i, c in enumerate(self.dataFrame.columns):
+            if self.dataFrame[c].dtype == 'object':
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str('N/A')))
+            else:
+                self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].kurtosis())))
+        rowCount += 1
+        # set vertical head label
+        self.statistic.setVerticalHeaderLabels(['Type','Count NA', 'NA %', 'mean','std','max','min','skew','Kurtosis'])
 
-class testDialog(QDialog):
-    def __init__(self):
-        super(testDialog, self).__init__()
-        self.mainLayout = QGridLayout(self)
-        self.setFixedSize(800, 500)
-        self.setLayout(self.mainLayout)
-        self.item = DataTabWidget()
-        self.mainLayout.addWidget(self.item, 0, 0)
-
-
-if __name__ == '__main__':
-    import sys
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    window = testDialog()
-    window.show()
-    sys.exit(app.exec_())
+    def onToggledTest(self, checked):
+        print(checked)

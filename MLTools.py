@@ -29,7 +29,7 @@ class MainFrame(QMainWindow):
         self.addToolBar(self.toolBar)
         self.statusBar.setContentsMargins(10, 0, 0, 10)
         self.setStatusBar(self.statusBar)
-        self.count=0
+        self.count = 0
         # local data
         self.MLProject = None
         self.fullProjectDir = None
@@ -228,6 +228,7 @@ class MainFrame(QMainWindow):
         scrollarea.setWidget(DataTabWidget(dataFile))
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
 
 class CreateProjectDialog(QDialog):
     def __init__(self):
