@@ -347,6 +347,18 @@ class AddFileDialog(QDialog):
         self.addModelLayout.addWidget(self.addModelEdit)
         self.addModelLayout.addWidget(self.addModelButton)
         self.addModelButton.clicked.connect(self.addModelDialog)
+        # add script
+        self.addScriptLayout = QHBoxLayout(self)
+        self.addScriptLayout.addWidget(QLabel("Script: "))
+        self.addScriptLayout.addSpacing(20)
+        self.addScriptEdit = QLineEdit(self)
+        self.addScriptButton = QPushButton("Browse", self)
+        self.addScriptLayout.addWidget(self.addScriptEdit)
+        self.addScriptLayout.addWidget(self.addScriptButton)
+        self.addScriptButton.clicked.connect(self.addScriptDialog)
+        # add result
+
+        # add log
         # Ok button
         self.buttonBoxLayout = QHBoxLayout(self)
         self.okButton = QPushButton('Ok', self)
@@ -364,16 +376,19 @@ class AddFileDialog(QDialog):
         # main layout
         self.mainLayout.addLayout(self.addDataLayout, 0, 0)
         self.mainLayout.addLayout(self.addModelLayout, 1, 0)
-        self.mainLayout.addLayout(self.buttonBoxLayout, 2, 0, Qt.AlignBottom)
+        self.mainLayout.addLayout(self.addScriptLayout, 2, 0)
+        self.mainLayout.addLayout(self.buttonBoxLayout, 3, 0, Qt.AlignBottom)
         self.mainLayout.setRowStretch(0, 3)
         self.mainLayout.setRowStretch(1, 3)
-        self.mainLayout.setRowStretch(2, 10)
+        self.mainLayout.setRowStretch(2, 3)
+        self.mainLayout.setRowStretch(3, 10)
 
         self.okButton.clicked.connect(self.confirm)
         self.cancelButton.clicked.connect(self.cancel)
         # set follow in confirm dialog
         self.dataFiles = None
         self.modelFiles = None
+        self.scriptFiles = None
 
     def addDataDialog(self):
         if not self.MLProject:
@@ -403,7 +418,7 @@ class AddFileDialog(QDialog):
         dialog = QFileDialog()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        fileTypes = "Model File (*.md);;"
+        fileTypes = "Model File (*.md)"
         if os.path.exists(os.path.join(self.MLProject.projectDir, 'model')):
             dialog.setDirectory(os.path.join(self.MLProject.projectDir, 'model'))
         else:
@@ -416,17 +431,41 @@ class AddFileDialog(QDialog):
         s = s[:-1]
         self.addModelEdit.setText(s)
 
+    def addScriptDialog(self):
+        if not self.MLProject:
+            QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
+            return
+        dialog = QFileDialog()
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileTypes = "Python File (*.py);; Jupyter NoteBook (*.ipynb);; Script File (*.py *.ipynb)"
+        if os.path.exists(os.path.join(self.MLProject.projectDir, 'script')):
+            dialog.setDirectory(os.path.join(self.MLProject.projectDir, 'script'))
+        else:
+            dialog.setDirectory(self.MLProject.projectDir)
+        self.scriptFiles, _ = dialog.getOpenFileNames(self, "Add script Files", "", fileTypes,
+                                                      options=options)  # return list
+        s = ''
+        for f in self.scriptFiles:
+            s += (os.path.basename(f) + ',')
+        s = s[:-1]
+        self.addScriptEdit.setText(s)
+
     def confirm(self):
         if self.dataFiles:
             for file in self.dataFiles:
-                if file.endswith('csv'):
+                if file.endswith('csv') and file not in self.MLProject.dataFiles_csv:
                     self.MLProject.dataFiles_csv.append(file)
-                elif file.endswith('pkl'):
+                elif file.endswith('pkl') and file not in self.MLProject.dataFiles_pkl:
                     self.MLProject.dataFiles_pkl.append(file)
         if self.modelFiles:
             for file in self.modelFiles:
-                if file.endswith('md'):
+                if file.endswith('md') and file not in self.MLProject.modelFiles:
                     self.MLProject.modelFiles.append(file)
+        if self.scriptFiles:
+            for file in self.scriptFiles:
+                if file not in self.MLProject.scriptFiles:
+                    self.MLProject.scriptFiles.append(file)
         self.done(QDialog.Accepted)
         self.MLProject.dumpProject(self.MLProject.projectFile)
 
