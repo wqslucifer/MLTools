@@ -244,6 +244,7 @@ class IpythonTabWidget(QWidget):
             event.accept()
         else:
             event.accept()
+        self.notebookp.kill()
 
     def delProcess(self):
         self.notebookp.kill()
@@ -258,12 +259,12 @@ class IpythonWebView(QWebEngineView):
 
     @pyqtSlot(bool)
     def onpagechange(self, ok):
-        #log("on page change: %s, %s" % (self.url(), ok))
+        log("on page change: %s, %s" % (self.url(), ok))
         if self.loadedPage is not None:
-            #log("disconnecting on close signal")
+            log("disconnecting on close signal")
             self.loadedPage.windowCloseRequested.disconnect(self.close)
         self.loadedPage = self.page()
-        #log("connecting on close signal")
+        log("connecting on close signal")
         self.loadedPage.windowCloseRequested.connect(self.close)
 
     def createWindow(self, windowType):
@@ -276,12 +277,12 @@ class IpythonWebView(QWebEngineView):
 
     def closeEvent(self, event):
         if self.loadedPage is not None:
-            #log("disconnecting on close signal")
+            log("disconnecting on close signal")
             self.loadedPage.windowCloseRequested.disconnect(self.close)
 
         if not self.main:
             if self in self.parent.windows:
                 self.parent.windows.remove(self)
-            #log("Window count: %s" % (len(self.parent.windows) + 1))
+            log("Window count: %s" % (len(self.parent.windows) + 1))
         event.accept()
 

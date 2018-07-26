@@ -4,7 +4,6 @@ import json
 import time
 import subprocess
 import signal
-import logging
 import threading
 
 from PyQt5.QtWidgets import *
@@ -15,7 +14,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget
 from customLayout import FlowLayout
-from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, log, IpythonWebView
+from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 class MainFrame(QMainWindow):
@@ -52,6 +51,7 @@ class MainFrame(QMainWindow):
         self.mainLayout = QGridLayout(self.mainWidget)
         self.explorer = QTabWidget(self)
         self.tabWindow = QTabWidget(self)
+        self.tabList = list()
         self.fileExplorer = QTreeWidget(self)
         # init ui for mainframe
         self.initUI()
@@ -67,6 +67,8 @@ class MainFrame(QMainWindow):
 
         rightWidget = QWidget(splitterMain)
         rightLayout = QVBoxLayout(rightWidget)
+        self.tabWindow.setTabsClosable(True)
+        self.tabWindow.tabCloseRequested.connect(self.closeTab)
         rightLayout.addWidget(self.tabWindow)
 
         self.mainLayout.addWidget(splitterMain)
@@ -162,6 +164,7 @@ class MainFrame(QMainWindow):
         # add scroll area to tab window
         self.tabWindow.addTab(scrollarea, 'Project')
         # add tab detail widget to scroll area
+        self.tabList.append(self.startTab)
         scrollarea.setWidget(self.startTab)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -192,7 +195,9 @@ class MainFrame(QMainWindow):
         self.tabWindow.addTab(scrollarea, os.path.basename(dataFile))
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
-        scrollarea.setWidget(DataTabWidget(dataFile))
+        dw = DataTabWidget(dataFile)
+        self.tabList.append(dw)
+        scrollarea.setWidget(dw)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -209,6 +214,7 @@ class MainFrame(QMainWindow):
             ipythonTab.basewebview.newIpython.connect(self.newIpython)
             self.subprocessEnd.connect(ipythonTab.delProcess)
             scrollarea.setWidget(ipythonTab)
+            self.tabList.append(ipythonTab)
         elif scriptFile.endswith('.py'):
             pass
             # scrollarea.setWidget(ScriptTabWidget(scriptFile))
@@ -279,6 +285,12 @@ class MainFrame(QMainWindow):
     def closeEvent(self, *args, **kwargs):
         self.subprocessEnd.emit()
 
+    def closeTab(self, index):
+        if not index == 0:
+            print(self.tabList[index])
+            self.tabList[index].close()
+            self.tabList.remove(self.tabList[index])
+            self.tabWindow.removeTab(index)
 
 
 class CreateProjectDialog(QDialog):
