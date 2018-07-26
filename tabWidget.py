@@ -1,7 +1,8 @@
 import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
-    QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit,QSpinBox,QDoubleSpinBox
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal,pyqtSlot, QSettings, QTimer, QUrl, QDir
+    QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
+    QDoubleSpinBox, QFrame,QSizePolicy
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath
 from PyQt5 import QtWidgets
@@ -13,28 +14,36 @@ import numpy as np
 import subprocess
 import logging
 import threading
+import gc
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
 
+
 def log(message):
     logging.debug(message)
+
 
 def startnotebook(notebook_executable="jupyter-notebook", port=8888, directory=QDir.homePath()):
     return subprocess.Popen([notebook_executable,
                              "--port=%s" % port, "--browser=n", "-y",
                              "--notebook-dir=%s" % directory], bufsize=1,
                             stderr=subprocess.PIPE)
+
+
 def process_thread_pipe(process):
     while process.poll() is None:  # while process is still alive
         log(str(process.stderr.readline()))
 
+
 class DataTabWidget(QWidget):
     def __init__(self, filename):
         super(DataTabWidget, self).__init__()
+        self.setAttribute(Qt.WA_DeleteOnClose)
         # local data
         self.dataFrame = None
         self.verticalHeaderWidth = 75
+        self.MAXROWS = 200
         # init widgets
         self.mainLayout = QGridLayout(self)
         self.rightLayout = QVBoxLayout(self)
@@ -86,10 +95,9 @@ class DataTabWidget(QWidget):
     def highLightSetting(self):
         layout = QVBoxLayout(self)
         self.tools_highLight.setLayout(layout)
-
         # init object
         NA_Threshold = 0
-        NA_ThresholdEdit = QDoubleSpinBox (self)
+        NA_ThresholdEdit = QDoubleSpinBox(self)
         NA_ThresholdEdit.setSingleStep(5.0)
         NA_ThresholdEdit.setValue(NA_Threshold)
         NA_ThresholdEdit.setSuffix('%')
@@ -97,6 +105,14 @@ class DataTabWidget(QWidget):
         NA_ThresholdLayout = QHBoxLayout(self)
         NA_ThresholdLayout.addWidget(QLabel('NA %: '))
         NA_ThresholdLayout.addWidget(NA_ThresholdEdit)
+        # separate line
+        line = QFrame(self)
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setFixedHeight(2)
+        line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        line.setStyleSheet("background-color: #c0c0c0;")
+        line.raise_()
         # switch
         switch = switchButton()
         switchLayout = QHBoxLayout(self)
@@ -105,11 +121,10 @@ class DataTabWidget(QWidget):
         switch.toggled.connect(self.onToggledTest)
         resetButton = QPushButton('reset', self)
         # add object
-        # layout.setAlignment(Qt.AlignTop)
-        layout.addLayout(NA_ThresholdLayout)
-        layout.addLayout(switchLayout)
-        layout.addWidget(resetButton)
-
+        layout.addLayout(NA_ThresholdLayout, 3)
+        layout.addWidget(line, 3)
+        layout.addLayout(switchLayout, 20)
+        layout.addWidget(resetButton, 3, Qt.AlignBottom)
 
     def initToolDataInfo(self):
         layout = QVBoxLayout(self)
@@ -120,13 +135,14 @@ class DataTabWidget(QWidget):
         # load data
         self.dataFrame = pd.read_csv(filename)
         # init table
-        self.dataExplorer.setRowCount(self.dataFrame.shape[0])
+        # self.dataExplorer.setRowCount(self.dataFrame.shape[0])
+        self.dataExplorer.setRowCount(self.MAXROWS)
         self.dataExplorer.setColumnCount(self.dataFrame.shape[1])
         self.dataExplorer.setHorizontalHeaderLabels(self.dataFrame.columns.tolist())
         self.dataExplorer.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
-        for index, line in self.dataFrame.iterrows():
-            for col, cell in enumerate(line):
-                self.dataExplorer.setItem(index, col, QTableWidgetItem(str(cell)))
+        for row in range(self.MAXROWS):
+            for col in range(self.dataFrame.shape[1]):
+                self.dataExplorer.setItem(row, col, QTableWidgetItem(str(self.dataFrame.iloc[row][col])))
 
     def initStatistic(self):
         rowCount = 0
@@ -146,7 +162,8 @@ class DataTabWidget(QWidget):
         # NA percentage
         self.statistic.insertRow(rowCount)
         for i, c in enumerate(self.dataFrame.columns):
-            self.statistic.setItem(rowCount, i, QTableWidgetItem(str(np.sum(self.dataFrame[c].isnull())/self.dataFrame.shape[0])))
+            self.statistic.setItem(rowCount, i,
+                                   QTableWidgetItem(str(np.sum(self.dataFrame[c].isnull()) / self.dataFrame.shape[0])))
         rowCount += 1
         # mean
         self.statistic.insertRow(rowCount)
@@ -197,10 +214,17 @@ class DataTabWidget(QWidget):
                 self.statistic.setItem(rowCount, i, QTableWidgetItem(str(self.dataFrame[c].kurtosis())))
         rowCount += 1
         # set vertical head label
-        self.statistic.setVerticalHeaderLabels(['Type','Count NA', 'NA %', 'mean','std','max','min','skew','Kurtosis'])
+        self.statistic.setVerticalHeaderLabels(
+            ['Type', 'Count NA', 'NA %', 'mean', 'std', 'max', 'min', 'skew', 'Kurtosis'])
 
     def onToggledTest(self, checked):
         print(checked)
+
+    def closeEvent(self, QCloseEvent):
+        #del self.dataFrame
+        gc.collect()
+
+
 
 class IpythonTabWidget(QWidget):
     def __init__(self, projectDir, parent=None):
@@ -226,7 +250,7 @@ class IpythonTabWidget(QWidget):
         self.windows = []
         self.layout = QGridLayout(self)
         self.basewebview = IpythonWebView(self, main=True)
-        self.layout.addWidget(self.basewebview,0,0)
+        self.layout.addWidget(self.basewebview, 0, 0)
         self.setLayout(self.layout)
         QTimer.singleShot(0, self.initialload)
 
@@ -249,8 +273,10 @@ class IpythonTabWidget(QWidget):
     def delProcess(self):
         self.notebookp.kill()
 
+
 class IpythonWebView(QWebEngineView):
     newIpython = pyqtSignal(QWebEngineView)
+
     def __init__(self, mainwindow, main=False):
         super(IpythonWebView, self).__init__(None)
         self.parent = mainwindow
@@ -285,4 +311,3 @@ class IpythonWebView(QWebEngineView):
                 self.parent.windows.remove(self)
             log("Window count: %s" % (len(self.parent.windows) + 1))
         event.accept()
-

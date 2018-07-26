@@ -17,6 +17,7 @@ from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
+
 class MainFrame(QMainWindow):
     subprocessEnd = pyqtSignal()
     def __init__(self, parent=None):
@@ -152,19 +153,25 @@ class MainFrame(QMainWindow):
 
     def initProjectTab(self):
         # create scroll area
+        currentIndex = None
         scrollarea = QScrollArea(self)
         scrollarea.setWidgetResizable(True)
         scrollbar = QScrollBar(self)
         # clean start tab and layout
-        del self.startTab, self.startTabLayout
+        if len(self.tabList):
+            currentIndex = self.tabWindow.currentIndex()+1
+            self.tabList.remove(self.startTab)
+            del self.startTab, self.startTabLayout
         self.startTabLayout = FlowLayout()
         # create widget
         self.startTab = QWidget(scrollarea)
         self.startTab.setLayout(self.startTabLayout)
         # add scroll area to tab window
-        self.tabWindow.addTab(scrollarea, 'Project')
-        # add tab detail widget to scroll area
-        self.tabList.append(self.startTab)
+        self.tabWindow.insertTab(0,scrollarea,'Project')
+        if currentIndex:
+            self.tabWindow.setCurrentIndex(currentIndex)
+        # add tab detail widget to scroll area\
+        self.tabList.insert(0, self.startTab)
         scrollarea.setWidget(self.startTab)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -221,7 +228,7 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
-    def newIpython(self, newview:QWebEngineView):
+    def newIpython(self, newview: QWebEngineView):
         scrollarea = QScrollArea(self)
         scrollarea.setWidgetResizable(True)
         scrollbar = QScrollBar(self)
@@ -243,7 +250,6 @@ class MainFrame(QMainWindow):
         self.MLProject = ml_project.loadProject(projectFile)
         # init local variable
         self.fullProjectDir = self.MLProject.projectDir
-
         self.initUI_Project()
         # save open history
         projectOpenHistory = self.getSetting('projectOpenHistory')
@@ -584,6 +590,7 @@ class ExceptionHandler(QtCore.QObject):
     def handler(self, exctype, value, traceback):
         self.errorSignal.emit()
         sys._excepthook(exctype, value, traceback)
+
 
 exceptionHandler = ExceptionHandler()
 sys._excepthook = sys.excepthook
