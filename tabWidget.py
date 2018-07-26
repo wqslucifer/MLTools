@@ -1,14 +1,33 @@
 import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit,QSpinBox,QDoubleSpinBox
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal,pyqtSlot, QSettings, QTimer, QUrl, QDir
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath
 from PyQt5 import QtWidgets
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+
 from SwitchButton import switchButton
 import pandas as pd
 import numpy as np
+import subprocess
+import logging
+import threading
 
+logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
+logging.basicConfig(level=logging.DEBUG, format=logfileformat)
+
+def log(message):
+    logging.debug(message)
+
+def startnotebook(notebook_executable="jupyter-notebook", port=8888, directory=QDir.homePath()):
+    return subprocess.Popen([notebook_executable,
+                             "--port=%s" % port, "--browser=n", "-y",
+                             "--notebook-dir=%s" % directory], bufsize=1,
+                            stderr=subprocess.PIPE)
+def process_thread_pipe(process):
+    while process.poll() is None:  # while process is still alive
+        log(str(process.stderr.readline()))
 
 class DataTabWidget(QWidget):
     def __init__(self, filename):
@@ -182,3 +201,87 @@ class DataTabWidget(QWidget):
 
     def onToggledTest(self, checked):
         print(checked)
+
+class IpythonTabWidget(QWidget):
+    def __init__(self, projectDir, parent=None):
+        super(IpythonTabWidget, self).__init__(parent)
+        log("Starting Jupyter notebook process")
+        self.notebookp = startnotebook(directory=projectDir)
+        log("Waiting for server to start...")
+        webaddr = None
+        while webaddr is None:
+            line = str(self.notebookp.stderr.readline())
+            log(line)
+            if "http://" in line:
+                start = line.find("http://")
+                end = line.find("/", start + len("http://"))
+                webaddr = line[start:end]
+        log("Server found at %s, migrating monitoring to listener thread" % webaddr)
+        # pass monitoring over to child thread
+        notebookmonitor = threading.Thread(name="Notebook Monitor", target=process_thread_pipe,
+                                           args=(self.notebookp,))
+        notebookmonitor.start()
+
+        self.homepage = webaddr
+        self.windows = []
+        self.layout = QGridLayout(self)
+        self.basewebview = IpythonWebView(self, main=True)
+        self.layout.addWidget(self.basewebview,0,0)
+        self.setLayout(self.layout)
+        QTimer.singleShot(0, self.initialload)
+
+    @pyqtSlot()
+    def initialload(self):
+        if self.homepage:
+            self.basewebview.load(QUrl(self.homepage))
+        self.show()
+
+    def closeEvent(self, event):
+        if self.windows:
+            for i in reversed(range(len(self.windows))):
+                w = self.windows.pop(i)
+                w.close()
+            event.accept()
+        else:
+            event.accept()
+
+    def delProcess(self):
+        self.notebookp.kill()
+
+class IpythonWebView(QWebEngineView):
+    newIpython = pyqtSignal(QWebEngineView)
+    def __init__(self, mainwindow, main=False):
+        super(IpythonWebView, self).__init__(None)
+        self.parent = mainwindow
+        self.main = main
+        self.loadedPage = None
+
+    @pyqtSlot(bool)
+    def onpagechange(self, ok):
+        #log("on page change: %s, %s" % (self.url(), ok))
+        if self.loadedPage is not None:
+            #log("disconnecting on close signal")
+            self.loadedPage.windowCloseRequested.disconnect(self.close)
+        self.loadedPage = self.page()
+        #log("connecting on close signal")
+        self.loadedPage.windowCloseRequested.connect(self.close)
+
+    def createWindow(self, windowType):
+        v = IpythonWebView(self.parent)
+        windows = self.parent.windows
+        windows.append(v)
+        self.newIpython.emit(v)
+        v.show()
+        return v
+
+    def closeEvent(self, event):
+        if self.loadedPage is not None:
+            #log("disconnecting on close signal")
+            self.loadedPage.windowCloseRequested.disconnect(self.close)
+
+        if not self.main:
+            if self in self.parent.windows:
+                self.parent.windows.remove(self)
+            #log("Window count: %s" % (len(self.parent.windows) + 1))
+        event.accept()
+

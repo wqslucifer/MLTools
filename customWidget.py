@@ -1,6 +1,8 @@
 import os
+import sys
+import math
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal,QTimer
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath
 from PyQt5 import QtWidgets
@@ -9,6 +11,7 @@ from PyQt5 import QtWidgets
 class ModelWidget(QWidget):
     # signal
     triggered = pyqtSignal()
+
     def __init__(self):
         super(ModelWidget, self).__init__()
         self.setFixedSize(180, 180)
@@ -211,6 +214,93 @@ class DataWidget(QWidget):
         return newLayout
 
 
+class ScriptWidget(QWidget):
+    # signal
+    triggered = pyqtSignal(str)
+    def __init__(self, scriptType, fileName, parent=None):
+        super(ScriptWidget, self).__init__(parent=parent)
+        self.setFixedSize(180, 180)
+        self.mainLayout = QGridLayout(self)
+        self.edge = None
+        self.labelFont = QFont("Arial", 10, QFont.Bold)
+        self.bgColor = None
+        self.normColor = None
+        self.enterColor = None
+        self.pressColor = None
+        self.pyColorSet = {'normColor': '#AAD2FF', 'enterColor': '#5EA7F9', 'pressColor': '#5695DC'}
+        self.ipynbColorSet = {'normColor': '#B8AAFF', 'enterColor': '#785EF9', 'pressColor': '#6C56DC'}
+        # Data type
+        self.fileName = fileName
+        self.ScriptType = scriptType
+        self.ScriptLabel = QLabel(scriptType)
+        self.ScriptLabel.setFont(QFont("Arial", 11, QFont.Bold))
+        # Data File name
+        self.ScriptFile = QLabel(os.path.basename(fileName))
+        self.ScriptFile.setFont(QFont("Arial", 9, QFont.Bold))
+        # Data describe
+        self.ScriptDescribe = QLabel('')
+        self.initUI()
+
+    def initUI(self):
+        self.setAutoFillBackground(True)
+        self.setLayout(self.mainLayout)
+        self.mainLayout.setContentsMargins(18, 18, 0, 0)
+        self.mainLayout.addWidget(self.ScriptLabel, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.ScriptFile, 1, 0)
+        self.mainLayout.addWidget(self.ScriptDescribe, 2, 0)
+        self.mainLayout.setRowStretch(3, 10)
+
+        # set color set
+        if self.ScriptType == 'py':
+            self.setColorSet(**self.pyColorSet)
+        elif self.ScriptType == 'ipynb':
+            self.setColorSet(**self.ipynbColorSet)
+        self.bgColor = self.normColor
+        self.edge = QRectF(5, 5, 170, 170)
+        # bg translucent
+        self.setStyleSheet("background-color: rgba(0,0,0,0)")
+
+    def paintEvent(self, ev):
+        path = QPainterPath()
+        painter = QPainter(self)
+        painter.setPen(QPen(QColor(255, 0, 0, 127), 6))
+        painter.setRenderHint(QPainter.Antialiasing)
+        path.addRoundedRect(self.edge, 15, 15)
+        painter.drawPath(path)
+        painter.fillPath(path, self.bgColor)
+
+    def updateBgColor(self, color):
+        self.bgColor = color
+        self.update()
+
+    def enterEvent(self, QEvent):
+        self.updateBgColor(self.enterColor)
+
+    def leaveEvent(self, QEvent):
+        self.updateBgColor(self.normColor)
+
+    def mousePressEvent(self, QMouseEvent):
+        self.updateBgColor(self.pressColor)
+
+    def mouseReleaseEvent(self, QMouseEvent):
+        self.updateBgColor(self.enterColor)
+        self.triggered.emit(self.fileName)
+
+    def setColorSet(self, normColor, enterColor, pressColor):
+        self.normColor = QColor(normColor)
+        self.enterColor = QColor(enterColor)
+        self.pressColor = QColor(pressColor)
+
+    def createNewHLayout(self, label, value, font, color='0B73F7'):
+        newLayout = QHBoxLayout(self)
+        newLayout.addWidget(label)
+        newLayout.addWidget(value, Qt.AlignLeft)
+        label.setFont(font)
+        value.setFont(font)
+        value.setStyleSheet("color:#%s;" % color)
+        return newLayout
+
+
 class testDialog(QDialog):
     def __init__(self):
         super(testDialog, self).__init__()
@@ -220,7 +310,6 @@ class testDialog(QDialog):
         self.item = DataWidget('csv')
         self.item.setDataFile('test.csv')
         self.mainLayout.addWidget(self.item, 0, 0)
-
 
 
 class ProjectWidget(QWidget):
@@ -294,8 +383,8 @@ class ProjectWidget(QWidget):
         self.pressColor = QColor(pressColor)
 
 
+
 if __name__ == '__main__':
-    import sys
     from PyQt5.QtWidgets import QApplication
 
     app = QApplication(sys.argv)

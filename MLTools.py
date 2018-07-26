@@ -2,23 +2,30 @@ import os
 import sys
 import json
 import time
+import subprocess
+import signal
+import logging
+import threading
+
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
-from customWidget import ModelWidget, DataWidget, ProjectWidget
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget
 from customLayout import FlowLayout
-from dataWidget import DataTabWidget
-
+from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, log, IpythonWebView
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 class MainFrame(QMainWindow):
+    subprocessEnd = pyqtSignal()
     def __init__(self, parent=None):
         super(MainFrame, self).__init__(parent)
         self.ui = loadUi('MainFrame.ui', self)
         self.setWindowIcon(QIcon('./MLTool.ico'))
         self.trayIcon = QSystemTrayIcon(QIcon('./MLTool.ico'))
+        self.setAttribute(Qt.WA_DeleteOnClose)
         # main window tools
         self.toolBar = QToolBar(self)
         self.statusBar = QStatusBar(self)
@@ -164,10 +171,59 @@ class MainFrame(QMainWindow):
                 dw = DataWidget('csv', d, self)
                 dw.triggered.connect(self.addDataTab)
                 self.startTabLayout.addWidget(dw)
+        if self.MLProject.scriptFiles:
+            for d in self.MLProject.scriptFiles:
+                if d.endswith('py'):
+                    sw = ScriptWidget('py', d, self)
+                elif d.endswith('ipynb'):
+                    sw = ScriptWidget('ipynb', d, self)
+                sw.triggered.connect(self.addScriptTab)
+                self.startTabLayout.addWidget(sw)
 
     def addModelTab(self):
         if os.path.exists(self.fullProjectDir):
             raise Exception("project dir exist")
+
+    def addDataTab(self, dataFile):
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        # add scroll area to tab window
+        self.tabWindow.addTab(scrollarea, os.path.basename(dataFile))
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+        # add tab detail widget to scroll area
+        scrollarea.setWidget(DataTabWidget(dataFile))
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+    def addScriptTab(self, scriptFile: str):
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        # add scroll area to tab window
+        self.tabWindow.addTab(scrollarea, os.path.basename(scriptFile))
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+        # add tab detail widget to scroll area
+        if scriptFile.endswith('.ipynb'):
+            ipythonTab = IpythonTabWidget(self.fullProjectDir, self)
+            ipythonTab.basewebview.newIpython.connect(self.newIpython)
+            self.subprocessEnd.connect(ipythonTab.delProcess)
+            scrollarea.setWidget(ipythonTab)
+        elif scriptFile.endswith('.py'):
+            pass
+            # scrollarea.setWidget(ScriptTabWidget(scriptFile))
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+    def newIpython(self, newview:QWebEngineView):
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        self.tabWindow.addTab(scrollarea, os.path.basename('newIp'))
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+        scrollarea.setWidget(newview)
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     def addOpenHistory(self):
         # add item to tab
@@ -179,6 +235,9 @@ class MainFrame(QMainWindow):
 
     def openProject(self, projectFile):
         self.MLProject = ml_project.loadProject(projectFile)
+        # init local variable
+        self.fullProjectDir = self.MLProject.projectDir
+
         self.initUI_Project()
         # save open history
         projectOpenHistory = self.getSetting('projectOpenHistory')
@@ -217,17 +276,9 @@ class MainFrame(QMainWindow):
             with open('setting.ml', 'w') as f:
                 json.dump(setting, f)
 
-    def addDataTab(self, dataFile):
-        scrollarea = QScrollArea(self)
-        scrollarea.setWidgetResizable(True)
-        scrollbar = QScrollBar(self)
-        # add scroll area to tab window
-        self.tabWindow.addTab(scrollarea, os.path.basename(dataFile))
-        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
-        # add tab detail widget to scroll area
-        scrollarea.setWidget(DataTabWidget(dataFile))
-        scrollarea.setVerticalScrollBar(scrollbar)
-        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+    def closeEvent(self, *args, **kwargs):
+        self.subprocessEnd.emit()
+
 
 
 class CreateProjectDialog(QDialog):
@@ -521,7 +572,6 @@ class ExceptionHandler(QtCore.QObject):
     def handler(self, exctype, value, traceback):
         self.errorSignal.emit()
         sys._excepthook(exctype, value, traceback)
-
 
 exceptionHandler = ExceptionHandler()
 sys._excepthook = sys.excepthook
