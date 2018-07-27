@@ -5,16 +5,16 @@ import json
 class ml_project:
     dataDir = 'data'
     logDir = 'log'
-    modelsDir = 'models'
+    modelDir = 'model'
     scriptDir = 'script'
-    resultsDir = 'results'
+    resultDir = 'result'
     def __init__(self):
         # default dirs
         self.projectName = None
         self.projectFile = None  # one file
         self.projectDir = None  # dir
         self.description = None  # save in file
-        self.models = list()  # save each model class
+        self.model = list()  # save each model class
 
         self.modelFiles = list() # *.md
         self.scriptFiles = list()  # python or jupyter notebook script list
@@ -56,25 +56,25 @@ class ml_project:
                 if filename.endswith('.log'):
                     newProject.logFiles.append(os.path.abspath(os.path.join(project_dir, newProject.logDir, filename)))
         # search result files
-        files = os.listdir(os.path.join(project_dir, newProject.resultsDir))
+        files = os.listdir(os.path.join(project_dir, newProject.resultDir))
         for filename in files:
             if not os.path.isdir(filename):
                 if filename.endswith('.mlr'):
-                    newProject.resultFiles.append(os.path.abspath(os.path.join(project_dir, newProject.resultsDir, filename)))
+                    newProject.resultFiles.append(os.path.abspath(os.path.join(project_dir, newProject.resultDir, filename)))
         # search model files
-        files = os.listdir(os.path.join(project_dir, newProject.modelsDir))
+        files = os.listdir(os.path.join(project_dir, newProject.modelDir))
         for filename in files:
             if not os.path.isdir(filename):
                 if filename.endswith('.pkl'):
-                    newProject.modelFiles.append(os.path.abspath(os.path.join(project_dir, newProject.modelsDir, filename)))
+                    newProject.modelFiles.append(os.path.abspath(os.path.join(project_dir, newProject.modelDir, filename)))
         newProject.description = os.path.abspath(os.path.join(project_dir, 'description.ml'))
         return newProject
 
     def addModel(self, model):
         if isinstance(model, str):
-            self.models.append(ml_model(model))
+            self.model.append(ml_model(model))
         elif isinstance(model, ml_model):
-            self.models.append(model)
+            self.model.append(model)
 
     @classmethod
     def loadProject(cls, projectFile):
@@ -85,7 +85,7 @@ class ml_project:
             newProject.projectDir = projectDict['projectDir']
             newProject.projectFile = projectDict['projectFile']
             newProject.description = projectDict['description']
-            newProject.models = projectDict['models']
+            newProject.model = projectDict['model']
             newProject.scriptFiles = projectDict['scriptFiles']
             newProject.resultFiles = projectDict['resultFiles']
             newProject.logFiles = projectDict['logFiles']
@@ -100,7 +100,7 @@ class ml_project:
         projectDict['projectDir'] = self.projectDir
         projectDict['projectFile'] = self.projectFile
         projectDict['description'] = self.description
-        projectDict['models'] = self.models
+        projectDict['model'] = self.model
         projectDict['scriptFiles'] = self.scriptFiles
         projectDict['resultFiles'] = self.resultFiles
         projectDict['logFiles'] = self.logFiles
@@ -119,10 +119,10 @@ class ml_model:
         self.logHistory = list()  # log: training output, errors
 
     def add_modelFile(self, project_: ml_project, modelFile):
-        self.modelFiles.append(os.path.abspath(project_.projectDir, project_.modelsDir, os.path.join(modelFile)))
+        self.modelFiles.append(os.path.abspath(project_.projectDir, project_.modelDir, os.path.join(modelFile)))
 
     def add_runHistory(self, project_: ml_project, resultFile):
-        self.runHistory.append(os.path.abspath(project_.projectDir, project_.resultsDir, os.path.join(resultFile)))
+        self.runHistory.append(os.path.abspath(project_.projectDir, project_.resultDir, os.path.join(resultFile)))
 
     def add_logHistory(self, project_: ml_project, logFile):
         self.logHistory.append(os.path.abspath(project_.projectDir, project_.logDir, os.path.join(logFile)))

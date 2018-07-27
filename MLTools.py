@@ -31,14 +31,12 @@ class MainFrame(QMainWindow):
         # main window tools
         self.toolBar = QToolBar(self)
         self.statusBar = QStatusBar(self)
-
-        self.openAction = QAction(QIcon('./res/Open.ico'), 'Open', self)
-        self.openAction.setStatusTip('Open')
-        self.toolBar.addAction(self.openAction)
-        self.addToolBar(self.toolBar)
         self.statusBar.setContentsMargins(10, 0, 0, 10)
+        self.addToolBar(self.toolBar)
         self.setStatusBar(self.statusBar)
-        self.count = 0
+        # init tool bar
+        self.openAction = None
+        self.modelAction = None
         # local data
         self.MLProject = None
         self.fullProjectDir = None
@@ -82,7 +80,17 @@ class MainFrame(QMainWindow):
         splitterMain.setStretchFactor(1, 10)
         splitterMain.setCollapsible(0, False)
         splitterMain.setCollapsible(1, False)
-
+        # tool bar
+        # open
+        self.openAction = QAction(QIcon('./res/Open.ico'), 'Open Project', self)
+        self.openAction.setStatusTip('Open Project')
+        self.openAction.triggered.connect(self.openProjectDialog)
+        self.toolBar.addAction(self.openAction)
+        # model
+        self.modelAction = QAction(QIcon('./res/Model.ico'), 'Create Model', self)
+        self.modelAction.setStatusTip('Create Model')
+        self.modelAction.triggered.connect(self.createModel)
+        self.toolBar.addAction(self.modelAction)
         # set menu
         openProjectMenu = self.ui.actionOpen_Project
         openProjectMenu.triggered.connect(self.openProjectDialog)
@@ -345,6 +353,99 @@ class MainFrame(QMainWindow):
 
     def onPopNewIpythonTab(self, value):
         self.popNewIpythonTab = value
+
+    def createModel(self):
+        if not self.MLProject:
+            QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
+            return
+        dialog = createModelDialog(self.MLProject)
+        r = dialog.exec_()
+        if r == QDialog.Accepted:
+            print(dialog.modelType)
+            print(dialog.modelName)
+            print(dialog.modelLocation)
+
+
+class createModelDialog(QDialog):
+    def __init__(self, MLProject: ml_project):
+        super(createModelDialog, self).__init__()
+        self.modelTypeList = ['XGB', 'LGBM', 'LINEAR']
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setFixedSize(600, 400)
+        self.dialogLayout = QVBoxLayout(self)
+        self.dialogLayout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.dialogLayout)
+        self.dialogLayout.setSpacing(10)
+        self.MLProject = MLProject
+        # model type
+        self.comboBoxLayout = QHBoxLayout(self)
+        self.comboBox = QComboBox(self)
+        self.comboBox.addItem('xgboost', 'xgboost_model')
+        self.comboBox.addItem('lightgbm', 'lightgbm_model')
+        self.comboBox.addItem('linear model', 'linear_model')
+        self.comboBoxLayout.addWidget(QLabel('Model Type: ', self), 1)
+        self.comboBoxLayout.addWidget(self.comboBox, 5)
+        self.modelType = self.modelTypeList[self.comboBox.currentIndex()]
+        # model name
+        self.modelName = self.comboBox.currentData() + '.md'
+        self.modelNameLayout = QHBoxLayout(self)
+        self.modelNameEditor = QLineEdit(self)
+        self.modelNameEditor.setText(self.modelName)
+        self.modelNameLayout.addWidget(QLabel('Model Name: ', self), 1)
+        self.modelNameLayout.addWidget(self.modelNameEditor, 5)
+        # model save location
+        self.modelLocation = os.path.join(self.MLProject.projectDir, self.MLProject.modelDir)
+        self.modelLocationLayout = QHBoxLayout(self)
+        self.modelLocationEdit = QLineEdit(self)
+        self.modelLocationEdit.setText(os.path.join(self.modelLocation, self.modelName))
+        self.modelLocationBrowse = QPushButton('Browse', self)
+        self.modelLocationLayout.addWidget(QLabel('Model Location: ', self), 2)
+        self.modelLocationLayout.addWidget(self.modelLocationEdit, 8)
+        self.modelLocationLayout.addWidget(self.modelLocationBrowse, 2)
+        # confirm button
+        self.confirmButton = QPushButton('Confirm', self)
+        self.cancelButton = QPushButton('Cancel', self)
+        self.buttonLayout = QHBoxLayout(self)
+        self.buttonLayout.setAlignment(Qt.AlignRight)
+        self.buttonLayout.addWidget(self.confirmButton)
+        self.buttonLayout.addWidget(self.cancelButton)
+        self.buttonLayout.setContentsMargins(0, 0, 20, 20)
+
+        self.dialogLayout.addLayout(self.comboBoxLayout)
+        self.dialogLayout.addLayout(self.modelNameLayout)
+        self.dialogLayout.addLayout(self.modelLocationLayout)
+        self.dialogLayout.addStretch(10)
+        self.dialogLayout.addLayout(self.buttonLayout)
+
+        self.modelNameEditor.textChanged.connect(self.updateModelName)
+        self.modelLocationBrowse.clicked.connect(self.modelLocationDialog)
+        self.comboBox.currentIndexChanged.connect(self.updateDefaultModelName)
+        self.confirmButton.clicked.connect(self.onConfirm)
+        self.cancelButton.clicked.connect(self.onCancel)
+
+    def onConfirm(self):
+        self.done(QDialog.Accepted)
+
+    def onCancel(self):
+        self.done(QDialog.Rejected)
+
+    def updateModelName(self, newModelName):
+        self.modelName = newModelName
+        self.modelLocationEdit.setText(os.path.join(self.modelLocation, self.modelName))
+
+    def updateDefaultModelName(self, index):
+        self.modelName = self.comboBox.itemData(index) + '.md'
+        self.modelNameEditor.setText(self.modelName)
+
+    def modelLocationDialog(self):
+        dialog = QFileDialog(self)
+        options = QFileDialog.Options()
+        options |= QFileDialog.ShowDirsOnly
+        self.modelLocation = dialog.getExistingDirectory(self, "Modle Location",
+                                                         os.path.join(self.MLProject.projectDir,
+                                                                      self.MLProject.modelDir),
+                                                         options=options)
+        self.modelLocationEdit.setText(os.path.abspath(os.path.join(self.MLProject.projectDir, self.modelName)))
 
 
 class CreateProjectDialog(QDialog):
