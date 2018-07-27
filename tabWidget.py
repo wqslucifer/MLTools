@@ -31,7 +31,6 @@ def startnotebook(notebook_executable="jupyter-notebook", port=8888, directory=Q
                              "--notebook-dir=%s" % directory], bufsize=1,
                             stderr=subprocess.PIPE)
 
-
 def process_thread_pipe(process):
     while process.poll() is None:  # while process is still alive
         log(str(process.stderr.readline()))
@@ -295,10 +294,11 @@ class customModel(QAbstractTableModel):
 
 
 class IpythonTabWidget(QWidget):
-    def __init__(self, projectDir, parent=None):
+    def __init__(self, scriptDir, parent=None):
         super(IpythonTabWidget, self).__init__(parent)
         log("Starting Jupyter notebook process")
-        self.notebookp = startnotebook(directory=projectDir)
+        self.notebookp = startnotebook(directory=scriptDir)
+
         log("Waiting for server to start...")
         webaddr = None
         while webaddr is None:

@@ -30,6 +30,8 @@
     <addaction name="actionCreate_Project"/>
     <addaction name="actionOpen_Project"/>
     <addaction name="actionAddFile"/>
+    <addaction name="separator"/>
+    <addaction name="actionSetting"/>
    </widget>
    <addaction name="menuFile_F"/>
   </widget>
@@ -47,6 +49,11 @@
   <action name="actionCreate_Project">
    <property name="text">
     <string>Create Project</string>
+   </property>
+  </action>
+  <action name="actionSetting">
+   <property name="text">
+    <string>Setting</string>
    </property>
   </action>
  </widget>

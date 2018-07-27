@@ -16,10 +16,12 @@ from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from SwitchButton import switchButton
 
 
 class MainFrame(QMainWindow):
     subprocessEnd = pyqtSignal()
+
     def __init__(self, parent=None):
         super(MainFrame, self).__init__(parent)
         self.ui = loadUi('MainFrame.ui', self)
@@ -44,6 +46,7 @@ class MainFrame(QMainWindow):
         self.startTab = None
         self.startTabLayout = FlowLayout()
         # setting file
+        self.popNewIpythonTab = False
         self.settingFile = None
         self.projectOpenHistory = dict()
         self.defaultDir = 'E:/project'
@@ -87,6 +90,8 @@ class MainFrame(QMainWindow):
         addFilesMenu.triggered.connect(self.addFiles)
         createProjectMenu = self.ui.actionCreate_Project
         createProjectMenu.triggered.connect(self.createProject)
+        settingMenu = self.ui.actionSetting
+        settingMenu.triggered.connect(self.setting)
 
     def createProject(self):
         c = CreateProjectDialog()
@@ -125,6 +130,23 @@ class MainFrame(QMainWindow):
         if len(projectFile):
             self.openProject(projectFile)
 
+    def setting(self):
+        settingLayout = QGridLayout(self)
+        settingDialog = QDialog(self)
+        settingDialog.setFixedSize(400, 250)
+        settingDialog.setLayout(settingLayout)
+        # set pop ipython
+        ifpopLayout = QHBoxLayout(self)
+        ifpopLayout.addWidget(QLabel('Pop Ipython Dialog', self))
+        switch = switchButton()
+        switch.toggled.connect(self.onPopNewIpythonTab)
+        ifpopLayout.addWidget(switch)
+        switch.setToggle(self.popNewIpythonTab)
+
+        # add widget
+        settingLayout.addLayout(ifpopLayout, 0, 0)
+        settingDialog.exec()
+
     def addFiles(self):
         dialog = AddFileDialog(self.MLProject)
         dialog.setModal(True)
@@ -159,7 +181,7 @@ class MainFrame(QMainWindow):
         scrollbar = QScrollBar(self)
         # clean start tab and layout
         if len(self.tabList):
-            currentIndex = self.tabWindow.currentIndex()+1
+            currentIndex = self.tabWindow.currentIndex() + 1
             self.tabList.remove(self.startTab)
             del self.startTab, self.startTabLayout
         self.startTabLayout = FlowLayout()
@@ -167,7 +189,7 @@ class MainFrame(QMainWindow):
         self.startTab = QWidget(scrollarea)
         self.startTab.setLayout(self.startTabLayout)
         # add scroll area to tab window
-        self.tabWindow.insertTab(0,scrollarea,'Project')
+        self.tabWindow.insertTab(0, scrollarea, 'Project')
         if currentIndex:
             self.tabWindow.setCurrentIndex(currentIndex)
         # add tab detail widget to scroll area\
@@ -229,14 +251,16 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     def newIpython(self, newview: QWebEngineView):
-        scrollarea = QScrollArea(self)
-        scrollarea.setWidgetResizable(True)
-        scrollbar = QScrollBar(self)
-        self.tabWindow.addTab(scrollarea, os.path.basename('newIp'))
-        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
-        scrollarea.setWidget(newview)
-        scrollarea.setVerticalScrollBar(scrollbar)
-        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        if not self.popNewIpythonTab:
+            scrollarea = QScrollArea(self)
+            scrollarea.setWidgetResizable(True)
+            scrollbar = QScrollBar(self)
+            self.tabWindow.addTab(scrollarea, os.path.basename('newIp'))
+            self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+            self.tabList.append(newview)
+            scrollarea.setWidget(newview)
+            scrollarea.setVerticalScrollBar(scrollbar)
+            scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     def addOpenHistory(self):
         # add item to tab
@@ -294,10 +318,33 @@ class MainFrame(QMainWindow):
 
     def closeTab(self, index):
         if not index == 0:
-            print(self.tabList[index])
+            if isinstance(self.tabList[index], IpythonTabWidget):
+                if len(self.tabList[index].windows):
+                    r = QMessageBox.information(self, 'Close Tab', 'If Colse sub tabs',
+                                                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+                    if r == QMessageBox.No:
+                        return
+                    else:
+                        # remove all sub tab
+                        while True:
+                            f = True
+                            for subIndex in range(len(self.tabList)):
+                                if isinstance(self.tabList[subIndex], QWebEngineView):
+                                    self.tabList[subIndex].close()
+                                    self.tabList.remove(self.tabList[subIndex])
+                                    self.tabWindow.removeTab(subIndex)
+                                    f = False
+                                    break
+                            if f:
+                                break
+            elif isinstance(self.tabList[index], QWebEngineView):
+                pass
             self.tabList[index].close()
             self.tabList.remove(self.tabList[index])
             self.tabWindow.removeTab(index)
+
+    def onPopNewIpythonTab(self, value):
+        self.popNewIpythonTab = value
 
 
 class CreateProjectDialog(QDialog):
