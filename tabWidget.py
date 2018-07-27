@@ -44,7 +44,7 @@ class DataTabWidget(QWidget):
         # local data
         self.filename = filename
         self.dataFrame = None
-        self.verticalHeaderWidth = 75
+        self.verticalHeaderWidth = 70
         self.displayRows = 2
         self.displayCols = 7
         # init widgets
@@ -123,7 +123,7 @@ class DataTabWidget(QWidget):
         switchLayout = QHBoxLayout(self)
         switchLayout.addWidget(QLabel('NA'))
         switchLayout.addWidget(switch)
-        switch.toggled.connect(self.onToggledTest)
+        switch.toggled.connect(self.onSwitchToggled)
         resetButton = QPushButton('reset', self)
         # add object
         layout.addLayout(NA_ThresholdLayout, 3)
@@ -143,11 +143,6 @@ class DataTabWidget(QWidget):
         self.dataExplorer.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.dataExplorer.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
         self.model.loadCSV(self.dataFrame)
-
-        # for row in range(self.displayRows):
-        #     for col in range(self.displayCols):
-        #         self.dataExplorer.setItem(row, col, QTableWidgetItem(str(self.dataFrame.iloc[row][col])))
-        # self.dataExplorer.horizontalScrollBar().installEventFilter(self)
 
     def initStatistic(self):
         rowCount = 0
@@ -222,7 +217,7 @@ class DataTabWidget(QWidget):
         self.statistic.setVerticalHeaderLabels(
             ['Type', 'Count NA', 'NA %', 'mean', 'std', 'max', 'min', 'skew', 'Kurtosis'])
 
-    def onToggledTest(self, checked):
+    def onSwitchToggled(self, checked):
         print(checked)
 
     def closeEvent(self, QCloseEvent):
@@ -277,14 +272,26 @@ class customModel(QAbstractTableModel):
         self.cols = cols
 
     def data(self, modelIndex: QModelIndex, role=None):
-        return str(self.dataFrame.iloc[modelIndex.row()][modelIndex.column()])
+        if role == Qt.DisplayRole:
+            return str(self.dataFrame.iloc[modelIndex.row()][modelIndex.column()])
+        else:
+            return QVariant()
 
     def headerData(self, section, orientation, role=None):
         if role != Qt.DisplayRole:
             return QVariant()
         if orientation == Qt.Horizontal:
             return self.dataFrame.columns[section]
+        if orientation == Qt.Vertical:
+            return self.dataFrame.index[section] + 1
         return QVariant()
+
+    def flags(self, modelIndex):
+        # flags = QAbstractTableModel.flags(self, modelIndex)
+        flags = Qt.NoItemFlags
+        flags |= Qt.ItemIsSelectable
+        flags |= Qt.ItemIsEnabled
+        return flags
 
 
 class IpythonTabWidget(QWidget):
@@ -383,12 +390,13 @@ class testDialog(QDialog):
         self.item = QTableView(self)
         self.model = customModel(self)
         self.item.setModel(self.model)
-        self.model.loadCSV(pd.DataFrame([[1, 2],[2, 3], [3, 4]], columns=['id', 'value']))
+        self.model.loadCSV(pd.DataFrame([[1, 2], [2, 3], [3, 4]], columns=['id', 'value']))
         self.mainLayout.addWidget(self.item, 0, 0)
 
 
 if __name__ == '__main__':
     import sys
+
     app = QApplication(sys.argv)
     window = testDialog()
     window.show()
