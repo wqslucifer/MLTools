@@ -156,6 +156,9 @@ class MainFrame(QMainWindow):
         settingDialog.exec()
 
     def addFiles(self):
+        if not self.MLProject:
+            QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
+            return
         dialog = AddFileDialog(self.MLProject)
         dialog.setModal(True)
         dialog.show()
@@ -369,6 +372,7 @@ class MainFrame(QMainWindow):
 class createModelDialog(QDialog):
     def __init__(self, MLProject: ml_project):
         super(createModelDialog, self).__init__()
+        self.setWindowIcon(QIcon('MLTool.ico'))
         self.modelTypeList = ['XGB', 'LGBM', 'LINEAR']
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setFixedSize(600, 400)
@@ -454,6 +458,7 @@ class CreateProjectDialog(QDialog):
         self.defaultLocation = 'E:/project'
         self.defaultName = 'Undefined'
         self.defaultDir = 'E:/project'
+        self.setWindowIcon(QIcon('MLTool.ico'))
         self.projectLocation = self.defaultLocation
         self.projectName = self.defaultName
         self.fullProjectDir = os.path.abspath(os.path.join(self.defaultLocation, self.defaultName))
@@ -546,6 +551,7 @@ class AddFileDialog(QDialog):
         self.setLayout(self.mainLayout)
         self.setFixedSize(650, 400)
         self.MLProject = MLProject
+        self.setWindowIcon(QIcon('MLTool.ico'))
         # add data
         self.addDataLayout = QHBoxLayout(self)
         self.addDataLayout.setContentsMargins(0, 10, 0, 0)
