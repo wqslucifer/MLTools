@@ -1,10 +1,11 @@
 import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
-    QDoubleSpinBox, QFrame,QSizePolicy
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir
+    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
+    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant
 from PyQt5 import QtCore
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel
 from PyQt5 import QtWidgets
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
@@ -41,9 +42,11 @@ class DataTabWidget(QWidget):
         super(DataTabWidget, self).__init__()
         self.setAttribute(Qt.WA_DeleteOnClose)
         # local data
+        self.filename = filename
         self.dataFrame = None
         self.verticalHeaderWidth = 75
-        self.MAXROWS = 200
+        self.displayRows = 2
+        self.displayCols = 7
         # init widgets
         self.mainLayout = QGridLayout(self)
         self.rightLayout = QVBoxLayout(self)
@@ -55,7 +58,9 @@ class DataTabWidget(QWidget):
 
         self.dataWindow = QWidget(self)
         self.dataWindowLayout = QVBoxLayout(self)
-        self.dataExplorer = QTableWidget(self)
+        self.dataExplorer = QTableView(self)
+        self.model = customModel(self)
+        self.dataExplorer.setModel(self.model)
         self.statistic = QTableWidget(self)
 
         self.mainTab = QTabWidget(self)
@@ -63,7 +68,6 @@ class DataTabWidget(QWidget):
         self.outputEdit = QTextEdit(self)
         # init UI
         self.initUI()
-        self.initDataExplorer(filename)
         self.initStatistic()
 
     def initUI(self):
@@ -74,6 +78,7 @@ class DataTabWidget(QWidget):
         self.toolset.addItem(self.tools_process, 'Data Process')
         self.toolset.addItem(self.tools_visualize, 'Data Visualize')
         # init data window
+        self.initDataExplorer(self.filename)
         self.dataWindowLayout.addWidget(self.dataExplorer)
         self.dataWindowLayout.addWidget(self.statistic)
         self.dataWindowLayout.setStretch(0, 1000)
@@ -135,14 +140,14 @@ class DataTabWidget(QWidget):
         # load data
         self.dataFrame = pd.read_csv(filename)
         # init table
-        # self.dataExplorer.setRowCount(self.dataFrame.shape[0])
-        self.dataExplorer.setRowCount(self.MAXROWS)
-        self.dataExplorer.setColumnCount(self.dataFrame.shape[1])
-        self.dataExplorer.setHorizontalHeaderLabels(self.dataFrame.columns.tolist())
+        self.dataExplorer.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.dataExplorer.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
-        for row in range(self.MAXROWS):
-            for col in range(self.dataFrame.shape[1]):
-                self.dataExplorer.setItem(row, col, QTableWidgetItem(str(self.dataFrame.iloc[row][col])))
+        self.model.loadCSV(self.dataFrame)
+
+        # for row in range(self.displayRows):
+        #     for col in range(self.displayCols):
+        #         self.dataExplorer.setItem(row, col, QTableWidgetItem(str(self.dataFrame.iloc[row][col])))
+        # self.dataExplorer.horizontalScrollBar().installEventFilter(self)
 
     def initStatistic(self):
         rowCount = 0
@@ -221,9 +226,65 @@ class DataTabWidget(QWidget):
         print(checked)
 
     def closeEvent(self, QCloseEvent):
-        #del self.dataFrame
+        # del self.dataFrame
         gc.collect()
 
+    def eventFilter(self, target, event):
+        if target == self.dataExplorer.horizontalScrollBar():
+            if event.type() == QEvent.Wheel:
+                print('wheel')
+                return False
+            elif event.type() == QEvent.MouseButtonPress:
+                print('mouse Press')
+                return False
+            elif event.type() == QEvent.MouseButtonRelease:
+                print(self.dataExplorer.item(0, 0))
+                print('mouse Release')
+                return False
+            elif event.type() == QEvent.MouseMove:
+                print('mouse move')
+                return False
+            else:
+                return False
+        else:
+            return QWidget.eventFilter(target, event)
+        # return
+
+
+class customModel(QAbstractTableModel):
+    def __init__(self, parent=None):
+        super(customModel, self).__init__(parent=parent)
+        self.rows = 0
+        self.cols = 0
+        self.dataFrame = pd.DataFrame()
+
+    def loadCSV(self, dataFrame):
+        self.dataFrame = dataFrame
+        self.rows = self.dataFrame.shape[0]
+        self.cols = self.dataFrame.shape[1]
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
+
+    def rowCount(self, parent=None, *args, **kwargs):
+        return self.rows
+
+    def columnCount(self, parent=None, *args, **kwargs):
+        return self.cols
+
+    def setRowCount(self, rows):
+        self.rows = rows
+
+    def setColumnCount(self, cols):
+        self.cols = cols
+
+    def data(self, modelIndex: QModelIndex, role=None):
+        return str(self.dataFrame.iloc[modelIndex.row()][modelIndex.column()])
+
+    def headerData(self, section, orientation, role=None):
+        if role != Qt.DisplayRole:
+            return QVariant()
+        if orientation == Qt.Horizontal:
+            return self.dataFrame.columns[section]
+        return QVariant()
 
 
 class IpythonTabWidget(QWidget):
@@ -311,3 +372,25 @@ class IpythonWebView(QWebEngineView):
                 self.parent.windows.remove(self)
             log("Window count: %s" % (len(self.parent.windows) + 1))
         event.accept()
+
+
+class testDialog(QDialog):
+    def __init__(self):
+        super(testDialog, self).__init__()
+        self.mainLayout = QGridLayout(self)
+        self.setFixedSize(800, 500)
+        self.setLayout(self.mainLayout)
+        self.item = QTableView(self)
+        self.model = customModel(self)
+        self.item.setModel(self.model)
+        self.model.loadCSV(pd.DataFrame([[1, 2],[2, 3], [3, 4]], columns=['id', 'value']))
+        self.mainLayout.addWidget(self.item, 0, 0)
+
+
+if __name__ == '__main__':
+    import sys
+    app = QApplication(sys.argv)
+    window = testDialog()
+    window.show()
+    # exceptionHandler.errorSignal.connect(something)
+    sys.exit(app.exec_())

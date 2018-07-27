@@ -289,6 +289,7 @@ class MainFrame(QMainWindow):
                 json.dump(setting, f)
 
     def closeEvent(self, *args, **kwargs):
+        del self.trayIcon
         self.subprocessEnd.emit()
 
     def closeTab(self, index):

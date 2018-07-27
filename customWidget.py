@@ -1,11 +1,10 @@
 import os
 import sys
-import math
+import time
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal,QTimer
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread
 from PyQt5 import QtCore
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath
-from PyQt5 import QtWidgets
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem
 
 
 class ModelWidget(QWidget):
@@ -125,6 +124,7 @@ class ModelWidget(QWidget):
 class DataWidget(QWidget):
     # signal
     triggered = pyqtSignal(str)
+
     def __init__(self, dataType, fileName, parent=None):
         super(DataWidget, self).__init__(parent=parent)
         self.setFixedSize(180, 180)
@@ -217,6 +217,7 @@ class DataWidget(QWidget):
 class ScriptWidget(QWidget):
     # signal
     triggered = pyqtSignal(str)
+
     def __init__(self, scriptType, fileName, parent=None):
         super(ScriptWidget, self).__init__(parent=parent)
         self.setFixedSize(180, 180)
@@ -382,12 +383,3 @@ class ProjectWidget(QWidget):
         self.enterColor = QColor(enterColor)
         self.pressColor = QColor(pressColor)
 
-
-
-if __name__ == '__main__':
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    window = testDialog()
-    window.show()
-    sys.exit(app.exec_())
