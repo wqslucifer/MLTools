@@ -11,12 +11,13 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from project import ml_project
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from SwitchButton import switchButton
+from model import CreateModel, ml_model
+from project import ml_project
 
 
 class MainFrame(QMainWindow):
@@ -40,6 +41,7 @@ class MainFrame(QMainWindow):
         # local data
         self.MLProject = None
         self.fullProjectDir = None
+        self.MLModels = list()
         # start tab
         self.startTab = None
         self.startTabLayout = FlowLayout()
@@ -56,9 +58,9 @@ class MainFrame(QMainWindow):
         self.tabList = list()
         self.fileExplorer = QTreeWidget(self)
         # init ui for mainframe
+        self.initSetting()
         self.initUI()
         self.initTabAndExplorer()
-        self.initSetting()
 
     def initUI(self):
         # set main layout and splitter
@@ -111,7 +113,7 @@ class MainFrame(QMainWindow):
             self.fullProjectDir = c.fullProjectDir
             # create project dirs
             os.mkdir(self.fullProjectDir)
-            for d in ['data', 'log', 'models', 'script', 'results']:
+            for d in ['data', 'log', 'model', 'script', 'result']:
                 tmpDir = os.path.join(self.fullProjectDir, d)
                 if not os.path.exists(tmpDir):
                     os.mkdir(tmpDir)
@@ -124,7 +126,8 @@ class MainFrame(QMainWindow):
             self.MLProject.dumpProject(self.MLProject.projectName + '.mlproj')
             # create project open history
             if os.path.exists(os.path.join('./', 'setting.ml')):
-                self.loadSetting(os.path.join('./', 'setting.ml'))
+                #self.loadSetting(os.path.join('./', 'setting.ml'))
+                pass
             else:
                 with open(os.path.join('./', 'setting.ml'), 'w') as _:
                     self.settingFile = os.path.join('./', 'setting.ml')
@@ -209,7 +212,7 @@ class MainFrame(QMainWindow):
         scrollarea.setWidget(self.startTab)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        # add model data and results
+        # add model data and result
         if self.MLProject.dataFiles_csv:
             for d in self.MLProject.dataFiles_csv:
                 dw = DataWidget('csv', d, self)
@@ -223,6 +226,11 @@ class MainFrame(QMainWindow):
                     sw = ScriptWidget('ipynb', d, self)
                 sw.triggered.connect(self.addScriptTab)
                 self.startTabLayout.addWidget(sw)
+        if self.MLProject.model:
+            for d in self.MLProject.model:
+                mw = ModelWidget()
+                mw.triggered.connect(self.addModelTab)
+                self.startTabLayout.addWidget(mw)
 
     def addModelTab(self):
         if os.path.exists(self.fullProjectDir):
@@ -277,10 +285,14 @@ class MainFrame(QMainWindow):
     def addOpenHistory(self):
         # add item to tab
         projectOpenHistory = self.getSetting('projectOpenHistory')
-        for d in projectOpenHistory.items():
-            projectItem = ProjectWidget(d[0], d[1])
-            projectItem.triggered.connect(self.openProject)
-            self.startTabLayout.addWidget(projectItem)
+        if projectOpenHistory:
+            for d in projectOpenHistory.items():
+                projectItem = ProjectWidget(d[0], d[1])
+                projectItem.triggered.connect(self.openProject)
+                self.startTabLayout.addWidget(projectItem)
+        else:
+            # add create project button to tab
+            pass
 
     def openProject(self, projectFile):
         self.MLProject = ml_project.loadProject(projectFile)
@@ -315,7 +327,7 @@ class MainFrame(QMainWindow):
                 setting = json.load(f)
                 return setting[key]
         else:
-            raise Exception('no setting file')
+            return None
 
     def initSetting(self):
         if not os.path.exists('setting.ml'):
@@ -365,11 +377,17 @@ class MainFrame(QMainWindow):
         dialog = createModelDialog(self.MLProject)
         r = dialog.exec_()
         if r == QDialog.Accepted:
-            print(dialog.modelType)
-            print(dialog.modelName)
-            print(dialog.modelLocation)
+            newModel = ml_model(dialog.modelType, dialog.modelName, dialog.modelLocation)
+            self.MLModels.append(newModel)
+            newModel.dumpModel()
+            self.MLProject.modelFiles.append(newModel.modelFile)
+            self.MLProject.model.append(newModel)
+            self.MLProject.dumpProject(self.MLProject.projectFile)
             # add tab and jump to it
-
+            c = CreateModel(newModel)
+            self.tabWindow.addTab(c, dialog.modelName)
+            self.tabWindow.setCurrentIndex(len(self.tabList))
+            self.tabList.append(c)
 
 class createModelDialog(QDialog):
     def __init__(self, MLProject: ml_project):

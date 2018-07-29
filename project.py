@@ -65,16 +65,10 @@ class ml_project:
         files = os.listdir(os.path.join(project_dir, newProject.modelDir))
         for filename in files:
             if not os.path.isdir(filename):
-                if filename.endswith('.pkl'):
+                if filename.endswith('.md'):
                     newProject.modelFiles.append(os.path.abspath(os.path.join(project_dir, newProject.modelDir, filename)))
         newProject.description = os.path.abspath(os.path.join(project_dir, 'description.ml'))
         return newProject
-
-    def addModel(self, model):
-        if isinstance(model, str):
-            self.model.append(ml_model(model))
-        elif isinstance(model, ml_model):
-            self.model.append(model)
 
     @classmethod
     def loadProject(cls, projectFile):
@@ -86,6 +80,7 @@ class ml_project:
             newProject.projectFile = projectDict['projectFile']
             newProject.description = projectDict['description']
             newProject.model = projectDict['model']
+            newProject.modelFiles = projectDict['modelFiles']
             newProject.scriptFiles = projectDict['scriptFiles']
             newProject.resultFiles = projectDict['resultFiles']
             newProject.logFiles = projectDict['logFiles']
@@ -101,6 +96,7 @@ class ml_project:
         projectDict['projectFile'] = self.projectFile
         projectDict['description'] = self.description
         projectDict['model'] = self.model
+        projectDict['modelFiles'] = self.modelFiles
         projectDict['scriptFiles'] = self.scriptFiles
         projectDict['resultFiles'] = self.resultFiles
         projectDict['logFiles'] = self.logFiles
@@ -110,22 +106,6 @@ class ml_project:
         with open(os.path.join(self.projectDir, projectFile), 'w') as f:
             json.dump(projectDict, f)
 
-class ml_model:
-    def __init__(self, modelname):
-        self.modelname = modelname
-        self.modelFiles = list()  # model files for this model class, possible multiple files for each fold
-        self.param = dict()  # param for this model
-        self.runHistory = list()  # save running history: data(origin file, features), param, running time, result, log
-        self.logHistory = list()  # log: training output, errors
-
-    def add_modelFile(self, project_: ml_project, modelFile):
-        self.modelFiles.append(os.path.abspath(project_.projectDir, project_.modelDir, os.path.join(modelFile)))
-
-    def add_runHistory(self, project_: ml_project, resultFile):
-        self.runHistory.append(os.path.abspath(project_.projectDir, project_.resultDir, os.path.join(resultFile)))
-
-    def add_logHistory(self, project_: ml_project, logFile):
-        self.logHistory.append(os.path.abspath(project_.projectDir, project_.logDir, os.path.join(logFile)))
 
 if __name__ == '__main__':
     p = ml_project()
