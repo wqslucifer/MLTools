@@ -66,6 +66,7 @@ class MainFrame(QMainWindow):
         leftWidget = QWidget(splitterMain)
         leftLayout = QVBoxLayout(leftWidget)
         leftLayout.addWidget(self.explorer)
+        self.explorer.setTabPosition(QTabWidget.West)
 
         rightWidget = QWidget(splitterMain)
         rightLayout = QVBoxLayout(rightWidget)
@@ -367,6 +368,7 @@ class MainFrame(QMainWindow):
             print(dialog.modelType)
             print(dialog.modelName)
             print(dialog.modelLocation)
+            # add tab and jump to it
 
 
 class createModelDialog(QDialog):

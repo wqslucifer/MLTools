@@ -1,11 +1,13 @@
 import os
 import sys
 import time
-from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout
+from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
+    QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread
-from PyQt5 import QtCore
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon
 
+
+# widgets for main window tabs
 
 class ModelWidget(QWidget):
     # signal
@@ -302,17 +304,6 @@ class ScriptWidget(QWidget):
         return newLayout
 
 
-class testDialog(QDialog):
-    def __init__(self):
-        super(testDialog, self).__init__()
-        self.mainLayout = QGridLayout(self)
-        self.setFixedSize(800, 500)
-        self.setLayout(self.mainLayout)
-        self.item = DataWidget('csv')
-        self.item.setDataFile('test.csv')
-        self.mainLayout.addWidget(self.item, 0, 0)
-
-
 class ProjectWidget(QWidget):
     # signal
     triggered = pyqtSignal(str)
@@ -383,3 +374,153 @@ class ProjectWidget(QWidget):
         self.enterColor = QColor(enterColor)
         self.pressColor = QColor(pressColor)
 
+
+class TitleBar(QWidget):
+    left = 0
+    up = 1
+    right = 2
+    down = 3
+
+    def __init__(self, title, parent=None):
+        super(TitleBar, self).__init__(parent=parent)
+        self.Title = QLabel(title, self)
+        self.Icon = QIcon('./res/collapse_left.ico')
+        self.Height = 30
+        self.currentOrient = self.left
+        self.font = QFont('Arial', 12, QFont.Bold)
+        self.CollapseButton = QPushButton(self.Icon, '', self)
+        self.mainLayout = QHBoxLayout(self)
+        self.mainLayout.addWidget(self.Title, 1, Qt.AlignLeft)
+        self.mainLayout.addStretch(1)
+        self.mainLayout.addWidget(self.CollapseButton, 1, Qt.AlignRight)
+        self.setLayout(self.mainLayout)
+        self.Title.setFont(self.font)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setHeight(50)
+        #self.CollapseButton.clicked.connect(self.onCollapseButtonClicked)
+
+    def setTitle(self, title):
+        self.Title.setText(title)
+
+    def setIcon(self, icon: QIcon):
+        self.Icon = icon
+
+    def setButtonOrient(self, orient):
+        if orient == self.left:
+            self.Icon = QIcon('./res/collapse_left.ico')
+        elif orient == self.up:
+            self.Icon = QIcon('./res/collapse_up.ico')
+        elif orient == self.right:
+            self.Icon = QIcon('./res/collapse_right.ico')
+        elif orient == self.down:
+            self.Icon = QIcon('./res/collapse_down.ico')
+        self.CollapseButton.setIcon(self.Icon)
+        self.currentOrient = orient
+
+    def setHeight(self, size):
+        self.Height = size
+        self.setFixedHeight(self.Height)
+
+    def onCollapseButtonClicked(self):
+        if self.currentOrient == self.left:
+            self.setButtonOrient(self.right)
+        elif self.currentOrient == self.right:
+            self.setButtonOrient(self.left)
+        elif self.currentOrient == self.up:
+            self.setButtonOrient(self.down)
+        elif self.currentOrient == self.down:
+            self.setButtonOrient(self.up)
+
+
+class CollapsibleTabWidget(QWidget):
+    Horizontal = 0
+    Vertical = 1
+
+    def __init__(self, parent=None):
+        super(CollapsibleTabWidget, self).__init__(parent=parent)
+        self.frameLayout = None
+        self.verticalLayout = None
+        self.tabBar = None
+        self.orientation = self.Horizontal
+        #self.orientation = self.Vertical
+        self.stackTitle = None
+        self.stackWidget = None
+
+        # local data
+        if self.orientation == self.Horizontal:
+            self.initHorizontalUI()
+            self.titleBarIcon = TitleBar.down
+        elif self.orientation == self.Vertical:
+            self.initVerticalUI()
+            self.titleBarIcon = TitleBar.left
+
+    def initHorizontalUI(self):
+        self.frameLayout = QVBoxLayout(self)
+        self.tabBar = QHBoxLayout(self)
+        self.verticalLayout = QVBoxLayout(self)
+        # fill stack
+        self.stackTitle = QStackedWidget(self)
+        self.stackWidget = QStackedWidget(self)
+        self.verticalLayout.addWidget(self.stackTitle)
+        self.verticalLayout.addWidget(self.stackWidget)
+        # finish
+        self.frameLayout.addLayout(self.verticalLayout)
+        self.frameLayout.addLayout(self.tabBar)
+        self.setLayout(self.frameLayout)
+
+    def initVerticalUI(self):
+        self.frameLayout = QHBoxLayout(self)
+        self.tabBar = QVBoxLayout(self)
+        self.verticalLayout = QVBoxLayout(self)
+        # fill stack
+        self.stackTitle = QStackedWidget(self)
+        self.stackWidget = QStackedWidget(self)
+        self.verticalLayout.addWidget(self.stackTitle)
+        self.verticalLayout.addWidget(self.stackWidget)
+        # finish
+        self.frameLayout.addLayout(self.tabBar)
+        self.frameLayout.addLayout(self.verticalLayout)
+        self.setLayout(self.frameLayout)
+
+    def setOrientation(self, orient):
+        self.orientation = orient
+
+    def onTabClicked(self, index):
+        pass
+
+    def addTab(self, title, widget: QWidget):
+        titleBar = TitleBar(title, self)
+        titleBar.setButtonOrient(self.titleBarIcon)
+        titleBar.CollapseButton.clicked.connect(self.collapseStacks)
+        self.stackTitle.addWidget(titleBar)
+        self.stackWidget.addWidget(widget)
+        tabButton = QPushButton(title, self)
+        tabButton.clicked.connect(self.collapseStacks)
+        self.tabBar.addWidget(tabButton,0,Qt.AlignLeft)
+
+    def collapseStacks(self):
+        if self.stackWidget.isVisible():
+            self.stackTitle.hide()
+            self.stackWidget.hide()
+        else:
+            self.stackTitle.show()
+            self.stackWidget.show()
+
+
+class testDialog(QDialog):
+    def __init__(self):
+        super(testDialog, self).__init__()
+        self.mainLayout = QVBoxLayout(self)
+        self.setFixedSize(800, 500)
+        self.setLayout(self.mainLayout)
+        self.item = CollapsibleTabWidget(self)
+        self.item.addTab('item1',QLabel('mainWidget',self))
+        self.mainLayout.addWidget(self.item)
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    test = testDialog()
+    test.show()
+    # exceptionHandler.errorSignal.connect(something)
+    sys.exit(app.exec_())
