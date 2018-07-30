@@ -21,6 +21,11 @@ class ml_model:
         self.modelType = modelType
         self.modelName = modelName
         self.modelLocation = modelLocation
+        self.modelPlatform = 'CPU'
+        self.modelLastRunTime = 0
+        self.localScore = 0
+        self.LBScore = 0
+        self.currentLoadData = 'N/A'
         self.modelFile = os.path.join(self.modelLocation, self.modelName)
         self.param = dict()
         self.modelLogs = list()
@@ -41,6 +46,11 @@ class ml_model:
             newModel.param = modelDict['param']
             newModel.modelLogs = modelDict['modelLogs']
             newModel.modelResults = modelDict['modelResults']
+            newModel.modelPlatform = modelDict['modelPlatform']
+            newModel.modelLastRunTime = modelDict['modelLastRunTime']
+            newModel.localScore = modelDict['localScore']
+            newModel.LBScore = modelDict['LBScore']
+            newModel.currentLoadData = modelDict['currentLoadData']
             return newModel
 
     def dumpModel(self, modelFile=None):
@@ -51,6 +61,11 @@ class ml_model:
         modelDict['param'] = self.param
         modelDict['modelLogs'] = self.modelLogs
         modelDict['modelResults'] = self.modelResults
+        modelDict['modelPlatform'] = self.modelPlatform
+        modelDict['modelLastRunTime'] = self.modelLastRunTime
+        modelDict['localScore'] = self.localScore
+        modelDict['LBScore'] = self.LBScore
+        modelDict['currentLoadData'] = self.currentLoadData
         if modelFile:
             self.modelFile = os.path.join(self.modelLocation, modelFile + '.md')
         with open(self.modelFile, 'w') as f:

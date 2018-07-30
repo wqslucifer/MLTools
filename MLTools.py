@@ -113,7 +113,8 @@ class MainFrame(QMainWindow):
         if r == QDialog.Accepted:
             self.fullProjectDir = c.fullProjectDir
             # create project dirs
-            os.mkdir(self.fullProjectDir)
+            if not os.path.exists(self.fullProjectDir):
+                os.mkdir(self.fullProjectDir)
             for d in ['data', 'log', 'model', 'script', 'result']:
                 tmpDir = os.path.join(self.fullProjectDir, d)
                 if not os.path.exists(tmpDir):
@@ -132,6 +133,7 @@ class MainFrame(QMainWindow):
             else:
                 with open(os.path.join('./', 'setting.ml'), 'w') as _:
                     self.settingFile = os.path.join('./', 'setting.ml')
+        self.openProject(self.MLProject.projectFile)
 
     def openProjectDialog(self):
         dialog = QFileDialog(self)
@@ -169,6 +171,7 @@ class MainFrame(QMainWindow):
         dialog.show()
         dialog.exec_()
         self.MLProject = dialog.MLProject
+        self.openProject(self.MLProject.projectFile)
 
     def initTabAndExplorer(self):
         # create scroll area
@@ -233,9 +236,9 @@ class MainFrame(QMainWindow):
                 mw.triggered.connect(self.addModelTab)
                 self.startTabLayout.addWidget(mw)
 
-    def addModelTab(self, modelName):
-        modelTab = CreateModel(self)
-        self.tabWindow.addTab(modelTab, modelName)
+    def addModelTab(self, MLModel:ml_model):
+        modelTab = CreateModel(MLModel, self)
+        self.tabWindow.addTab(modelTab, MLModel.modelName)
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(modelTab))
         self.tabList.append(modelTab)
 
@@ -268,6 +271,7 @@ class MainFrame(QMainWindow):
             scrollarea.setWidget(ipythonTab)
             self.tabList.append(ipythonTab)
         elif scriptFile.endswith('.py'):
+            #self.tabList.append()
             pass
             # scrollarea.setWidget(ScriptTabWidget(scriptFile))
         scrollarea.setVerticalScrollBar(scrollbar)
@@ -472,6 +476,7 @@ class createModelDialog(QDialog):
     def updateDefaultModelName(self, index):
         self.modelName = self.comboBox.itemData(index) + '.md'
         self.modelNameEditor.setText(self.modelName)
+        self.modelType = self.modelTypeList[index]
 
     def modelLocationDialog(self):
         dialog = QFileDialog(self)
@@ -482,6 +487,8 @@ class createModelDialog(QDialog):
                                                                       self.MLProject.modelDir),
                                                          options=options)
         self.modelLocationEdit.setText(os.path.abspath(os.path.join(self.MLProject.projectDir, self.modelName)))
+
+
 
 
 class CreateProjectDialog(QDialog):
@@ -555,9 +562,12 @@ class CreateProjectDialog(QDialog):
 
     def checkExist(self):
         self.fullProjectDir = os.path.abspath(os.path.join(self.projectLocation, self.projectName))
-        print(self.fullProjectDir)
-        if os.path.exists(self.fullProjectDir):
+        if os.path.exists(os.path.join(self.fullProjectDir, self.projectName)):
             QMessageBox.information(self, 'Project Exist', 'Project Exist, select other directory')
+            self.done(QDialog.Rejected)
+        elif os.path.exists(self.fullProjectDir):
+            QMessageBox.information(self, 'ProjectDir Exist', 'Create project uses exist dir')
+            self.done(QDialog.Accepted)
         else:
             self.done(QDialog.Accepted)
 

@@ -8,11 +8,12 @@ from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, 
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon
 from model import ml_model
 
+
 # widgets for main window tabs
 
 class ModelWidget(QWidget):
     # signal
-    triggered = pyqtSignal(str)
+    triggered = pyqtSignal(ml_model)
 
     def __init__(self, modelFile):
         super(ModelWidget, self).__init__()
@@ -22,8 +23,11 @@ class ModelWidget(QWidget):
         self.bgColor = None
         self.labelFont = QFont("Arial", 10, QFont.Bold)
         self.MLModel = ml_model.loadModel(modelFile)
+        # model name
+        self.modelName = QLabel(self.MLModel.modelName)
+        self.modelName.setFont(QFont("Arial", 11, QFont.Bold))
         # model type
-        self.modelTypeLabel = QLabel(self.MLModel.modelType)
+        self.modelTypeLabel = QLabel('Type:' + self.MLModel.modelType, self)
         self.modelTypeLabel.setFont(QFont("Arial", 11, QFont.Bold))
         # model describe
         self.modelDescribeLabel = QLabel("Describe:")
@@ -43,21 +47,22 @@ class ModelWidget(QWidget):
         self.setAutoFillBackground(True)
         self.setLayout(self.mainLayout)
         self.mainLayout.setContentsMargins(18, 18, 0, 0)
-        self.mainLayout.addWidget(self.modelTypeLabel, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.modelName, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.modelTypeLabel, 1, 0, Qt.AlignTop)
         # local cv item
         evalLayout = self.createNewHLayout(self.evalMetric, self.evalScore, self.labelFont)
-        self.mainLayout.addLayout(evalLayout, 1, 0)
+        self.mainLayout.addLayout(evalLayout, 2, 0)
         # LB item
         LBLayout = self.createNewHLayout(self.leaderBoardLabel, self.LBScore, self.labelFont)
         LBLayout.setSpacing(16)
-        self.mainLayout.addLayout(LBLayout, 2, 0)
+        self.mainLayout.addLayout(LBLayout, 3, 0)
         # data set label
-        self.mainLayout.addWidget(self.dataSetLabel, 3, 0)
+        self.mainLayout.addWidget(self.dataSetLabel, 4, 0)
         # describe label
-        self.mainLayout.addWidget(self.modelDescribeLabel, 4, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.modelDescribeLabel, 5, 0, Qt.AlignTop)
 
         self.mainLayout.setRowStretch(0, 1)
-        self.mainLayout.setRowStretch(5, 20)
+        self.mainLayout.setRowStretch(6, 20)
         self.bgColor = QColor('#FFA779')
         self.edge = QRectF(5, 5, 170, 170)
         # bg translucent
@@ -89,7 +94,7 @@ class ModelWidget(QWidget):
     def mouseReleaseEvent(self, QMouseEvent):
         self.updateBgColor(QColor('#FF6A1D'))
         print("Model tab")
-        self.triggered.emit(self.MLModel.modelName)
+        self.triggered.emit(self.MLModel)
 
     def setModel(self, ModelType, Describe=None):
         if isinstance(ModelType, str):
@@ -436,6 +441,7 @@ class CollapsibleTabWidget(QWidget):
     Horizontal = 0
     Vertical = 1
     doCollapse = pyqtSignal()
+
     def __init__(self, parent=None):
         super(CollapsibleTabWidget, self).__init__(parent=parent)
         self.frameLayout = None
@@ -446,6 +452,7 @@ class CollapsibleTabWidget(QWidget):
         # self.orientation = self.Vertical
         self.stackTitle = None
         self.stackWidget = None
+        self.tabBarList = []
 
         # local data
         if self.orientation == self.Horizontal:
@@ -463,6 +470,7 @@ class CollapsibleTabWidget(QWidget):
         self.frameLayout = QVBoxLayout(self)
         self.tabBar = QHBoxLayout(self)
         self.tabBarWidget.setLayout(self.tabBar)
+        self.tabBar.setAlignment(Qt.AlignLeft)
         self.verticalLayout = QVBoxLayout(self)
         # fill stack
         self.stackTitle = QStackedWidget(self)
@@ -478,6 +486,7 @@ class CollapsibleTabWidget(QWidget):
         self.frameLayout = QHBoxLayout(self)
         self.tabBar = QVBoxLayout(self)
         self.tabBarWidget.setLayout(self.tabBar)
+        self.tabBar.setAlignment(Qt.AlignTop)
         self.verticalLayout = QVBoxLayout(self)
         # fill stack
         self.stackTitle = QStackedWidget(self)
@@ -501,9 +510,13 @@ class CollapsibleTabWidget(QWidget):
         titleBar.CollapseButton.clicked.connect(self.collapseStacks)
         self.stackTitle.addWidget(titleBar)
         self.stackWidget.addWidget(widget)
-        tabButton = QPushButton(title, self)
+        tabButton = customPushButton(title, len(self.tabBarList), self)
+        self.tabBarList.append(tabButton)
+
         tabButton.clicked.connect(self.collapseStacks)
+        tabButton.clicked_index.connect(self.setCurStack)
         self.tabBar.addWidget(tabButton, 0, Qt.AlignLeft)
+
         self.stackTitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.stackTitle.setFixedHeight(titleBar.Height)
 
@@ -515,6 +528,22 @@ class CollapsibleTabWidget(QWidget):
             self.stackTitle.show()
             self.stackWidget.show()
         self.doCollapse.emit()
+
+    def setCurStack(self, index):
+        self.stackTitle.setCurrentIndex(index)
+        self.stackWidget.setCurrentIndex(index)
+
+class customPushButton(QPushButton):
+    clicked_index = pyqtSignal(int)
+
+    def __init__(self, label, index, parent=None):
+        super(customPushButton, self).__init__(parent=parent)
+        self.setText(label)
+        self.index = index
+
+    def mouseReleaseEvent(self, event):
+        self.clicked_index.emit(self.index)
+        QPushButton.mouseReleaseEvent(self, event)
 
 
 class testDialog(QDialog):

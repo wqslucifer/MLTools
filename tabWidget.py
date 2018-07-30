@@ -1,7 +1,8 @@
 import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
-    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar,QSplitter,QSplitterHandle
+    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
+    QSplitterHandle
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel
@@ -15,7 +16,7 @@ import subprocess
 import logging
 import threading
 import gc
-import time
+import datetime
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -384,7 +385,8 @@ class IpythonWebView(QWebEngineView):
 
 # widget for tab
 class CreateModel(QWidget):
-    def __init__(self, MLModel, parent=None):
+    from model import ml_model
+    def __init__(self, MLModel: ml_model, parent=None):
         super(CreateModel, self).__init__(parent=parent)
         self.outLayout = QVBoxLayout(self)
         self.insideLayout = QVBoxLayout(self)
@@ -395,16 +397,22 @@ class CreateModel(QWidget):
         self.displayWidget = QWidget(self)
         self.tabWidget = CollapsibleTabWidget(self)
         self.MLModel = MLModel
+        # tab widget
         self.outputEditor = QTextEdit(self)
+        self.resultList = QListWidget(self)
+        self.logList = QListWidget(self)
+
         self.initUI()
         self.initTabs()
+        self.initModelFrame()
         self.tabWidget.doCollapse.connect(self.CollapseTab)
 
     def initUI(self):
-        self.insideLayout.addWidget(self.modelFrame)
-        self.insideLayout.addWidget(self.displayWidget)
+        self.insideLayout.addWidget(self.modelFrame, 1)
+        self.insideLayout.addWidget(self.displayWidget, 5)
         self.insideWidget.setLayout(self.insideLayout)
         self.scrollArea.setWidgetResizable(True)
+        self.modelFrame.setFixedHeight(150)
 
         scrollbar = QScrollBar(self)
         self.scrollArea.setWidget(self.insideWidget)
@@ -421,13 +429,44 @@ class CreateModel(QWidget):
 
     def initTabs(self):
         self.tabWidget.addTab('Output', self.outputEditor)
+        self.tabWidget.addTab('Results', self.resultList)
+        self.tabWidget.addTab('Logs', self.logList)
+
+    def initModelFrame(self):
+        modelFrameLayout = QGridLayout(self)
+        runButton = QPushButton('RUN', self)
+        stopButton = QPushButton('STOP', self)
+        runButton.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        stopButton.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.modelFrame.setFrameShape(QFrame.Box)
+        self.modelFrame.setFrameShadow(QFrame.Raised)
+        self.modelFrame.setLayout(modelFrameLayout)
+        modelFrameLayout.addWidget(QLabel('Model Name: ' + self.MLModel.modelName), 0, 0)
+        modelFrameLayout.addWidget(QLabel('Model Type: ' + self.MLModel.modelType), 0, 1)
+        modelFrameLayout.addWidget(QLabel('Platform: ' + self.MLModel.modelPlatform), 0, 2)
+        modelFrameLayout.addWidget(runButton, 0, 4, 2, 1)
+        modelFrameLayout.addWidget(QLabel('Last RunTime: ' + str(datetime.timedelta(self.MLModel.modelLastRunTime))), 1,
+                                   0)
+        modelFrameLayout.addWidget(QLabel('Data: ' + self.MLModel.currentLoadData), 1, 1, 1, 1)
+        modelFrameLayout.addWidget(stopButton, 2, 4, 2, 1)
+        modelFrameLayout.addWidget(QLabel('Local Score: ' + str(self.MLModel.localScore)), 2, 0)
+        modelFrameLayout.addWidget(QLabel('LB Score: ' + str(self.MLModel.LBScore)), 2, 1)
+        paramLabel = QLabel('Param: ' + str(self.MLModel.param))
+        paramLabel.setToolTip(str(self.MLModel.param))
+        modelFrameLayout.addWidget(paramLabel, 3, 0, 1, 2)
+        modelFrameLayout.setSpacing(10)
+        modelFrameLayout.setColumnStretch(0, 1)
+        modelFrameLayout.setColumnStretch(1, 1)
+        modelFrameLayout.setColumnStretch(2, 1)
+        modelFrameLayout.setColumnStretch(3, 2)
+        modelFrameLayout.setColumnStretch(4, 1)
 
     def CollapseTab(self):
         if self.tabWidget.stackWidget.isVisible():
-            self.splitterMain.setSizes([10000,1])
+            self.splitterMain.setSizes([10000, 1])
             self.splitterMain.handle(1).setEnabled(True)
         else:
-            self.splitterMain.setSizes([10000,1])
+            self.splitterMain.setSizes([10000, 1])
             self.splitterMain.handle(1).setEnabled(False)
 
 
