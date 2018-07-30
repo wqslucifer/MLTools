@@ -11,9 +11,9 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, CreateModel
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget
 from customLayout import FlowLayout
-from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log
+from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, CreateModel
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from SwitchButton import switchButton
 from model import ml_model

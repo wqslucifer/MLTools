@@ -1,13 +1,12 @@
 import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
-    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication
+    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar,QSplitter,QSplitterHandle
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant
-from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel
-from PyQt5 import QtWidgets
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from customWidget import CollapsibleTabWidget
 
 from SwitchButton import switchButton
 import pandas as pd
@@ -16,6 +15,7 @@ import subprocess
 import logging
 import threading
 import gc
+import time
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -30,6 +30,7 @@ def startnotebook(notebook_executable="jupyter-notebook", port=8888, directory=Q
                              "--port=%s" % port, "--browser=n", "-y",
                              "--notebook-dir=%s" % directory], bufsize=1,
                             stderr=subprocess.PIPE)
+
 
 def process_thread_pipe(process):
     while process.poll() is None:  # while process is still alive
@@ -58,7 +59,7 @@ class DataTabWidget(QWidget):
         self.dataWindow = QWidget(self)
         self.dataWindowLayout = QVBoxLayout(self)
         self.dataExplorer = QTableView(self)
-        self.model = customModel(self)
+        self.model = customTableModel(self)
         self.dataExplorer.setModel(self.model)
         self.statistic = QTableWidget(self)
 
@@ -245,9 +246,9 @@ class DataTabWidget(QWidget):
         # return
 
 
-class customModel(QAbstractTableModel):
+class customTableModel(QAbstractTableModel):
     def __init__(self, parent=None):
-        super(customModel, self).__init__(parent=parent)
+        super(customTableModel, self).__init__(parent=parent)
         self.rows = 0
         self.cols = 0
         self.dataFrame = pd.DataFrame()
@@ -381,6 +382,55 @@ class IpythonWebView(QWebEngineView):
         event.accept()
 
 
+# widget for tab
+class CreateModel(QWidget):
+    def __init__(self, MLModel, parent=None):
+        super(CreateModel, self).__init__(parent=parent)
+        self.outLayout = QVBoxLayout(self)
+        self.insideLayout = QVBoxLayout(self)
+        self.insideWidget = QWidget(self)
+        self.splitterMain = QSplitter(Qt.Vertical)
+        self.scrollArea = QScrollArea(self)
+        self.modelFrame = QFrame(self)
+        self.displayWidget = QWidget(self)
+        self.tabWidget = CollapsibleTabWidget(self)
+        self.MLModel = MLModel
+        self.outputEditor = QTextEdit(self)
+        self.initUI()
+        self.initTabs()
+        self.tabWidget.doCollapse.connect(self.CollapseTab)
+
+    def initUI(self):
+        self.insideLayout.addWidget(self.modelFrame)
+        self.insideLayout.addWidget(self.displayWidget)
+        self.insideWidget.setLayout(self.insideLayout)
+        self.scrollArea.setWidgetResizable(True)
+
+        scrollbar = QScrollBar(self)
+        self.scrollArea.setWidget(self.insideWidget)
+        self.scrollArea.setVerticalScrollBar(scrollbar)
+        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.splitterMain.addWidget(self.scrollArea)
+        self.splitterMain.addWidget(self.tabWidget)
+        self.outLayout.addWidget(self.splitterMain)
+
+        self.splitterMain.setStretchFactor(0, 4)
+        self.splitterMain.setStretchFactor(1, 1)
+        self.splitterMain.setCollapsible(0, False)
+        self.splitterMain.setCollapsible(1, False)
+
+    def initTabs(self):
+        self.tabWidget.addTab('Output', self.outputEditor)
+
+    def CollapseTab(self):
+        if self.tabWidget.stackWidget.isVisible():
+            self.splitterMain.setSizes([10000,1])
+            self.splitterMain.handle(1).setEnabled(True)
+        else:
+            self.splitterMain.setSizes([10000,1])
+            self.splitterMain.handle(1).setEnabled(False)
+
+
 class testDialog(QDialog):
     def __init__(self):
         super(testDialog, self).__init__()
@@ -388,7 +438,7 @@ class testDialog(QDialog):
         self.setFixedSize(800, 500)
         self.setLayout(self.mainLayout)
         self.item = QTableView(self)
-        self.model = customModel(self)
+        self.model = customTableModel(self)
         self.item.setModel(self.model)
         self.model.loadCSV(pd.DataFrame([[1, 2], [2, 3], [3, 4]], columns=['id', 'value']))
         self.mainLayout.addWidget(self.item, 0, 0)

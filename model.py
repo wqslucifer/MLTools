@@ -16,8 +16,6 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
 from SwitchButton import switchButton
 
-
-
 class ml_model:
     def __init__(self, modelType, modelName, modelLocation):
         self.modelType = modelType

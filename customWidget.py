@@ -3,11 +3,10 @@ import sys
 import time
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
-    QScrollBar, QScrollArea
+    QScrollBar, QScrollArea, QTextEdit
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon
 from model import ml_model
-
 
 # widgets for main window tabs
 
@@ -387,7 +386,7 @@ class TitleBar(QWidget):
         super(TitleBar, self).__init__(parent=parent)
         self.Title = QLabel(title, self)
         self.Icon = QIcon('./res/collapse_left.ico')
-        self.Height = 30
+        self.Height = 40
         self.currentOrient = self.left
         self.font = QFont('Arial', 12, QFont.Bold)
         self.CollapseButton = QPushButton(self.Icon, '', self)
@@ -398,8 +397,7 @@ class TitleBar(QWidget):
         self.setLayout(self.mainLayout)
         self.Title.setFont(self.font)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setHeight(50)
-        # self.CollapseButton.clicked.connect(self.onCollapseButtonClicked)
+        self.setFixedHeight(self.Height)
 
     def setTitle(self, title):
         self.Title.setText(title)
@@ -437,12 +435,13 @@ class TitleBar(QWidget):
 class CollapsibleTabWidget(QWidget):
     Horizontal = 0
     Vertical = 1
-
+    doCollapse = pyqtSignal()
     def __init__(self, parent=None):
         super(CollapsibleTabWidget, self).__init__(parent=parent)
         self.frameLayout = None
         self.verticalLayout = None
         self.tabBar = None
+        self.tabBarWidget = QWidget(self)
         self.orientation = self.Horizontal
         # self.orientation = self.Vertical
         self.stackTitle = None
@@ -456,9 +455,14 @@ class CollapsibleTabWidget(QWidget):
             self.initVerticalUI()
             self.titleBarIcon = TitleBar.left
 
+        self.tabBarWidget.setStyleSheet('background-color: #B2B2B2;')
+        self.stackTitle.setStyleSheet('background-color: #B2B2B2;')
+        self.tabBarWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+
     def initHorizontalUI(self):
         self.frameLayout = QVBoxLayout(self)
         self.tabBar = QHBoxLayout(self)
+        self.tabBarWidget.setLayout(self.tabBar)
         self.verticalLayout = QVBoxLayout(self)
         # fill stack
         self.stackTitle = QStackedWidget(self)
@@ -467,12 +471,13 @@ class CollapsibleTabWidget(QWidget):
         self.verticalLayout.addWidget(self.stackWidget)
         # finish
         self.frameLayout.addLayout(self.verticalLayout)
-        self.frameLayout.addLayout(self.tabBar)
+        self.frameLayout.addWidget(self.tabBarWidget)
         self.setLayout(self.frameLayout)
 
     def initVerticalUI(self):
         self.frameLayout = QHBoxLayout(self)
         self.tabBar = QVBoxLayout(self)
+        self.tabBarWidget.setLayout(self.tabBar)
         self.verticalLayout = QVBoxLayout(self)
         # fill stack
         self.stackTitle = QStackedWidget(self)
@@ -481,7 +486,7 @@ class CollapsibleTabWidget(QWidget):
         self.verticalLayout.addWidget(self.stackWidget)
         # finish
         self.frameLayout.addLayout(self.tabBar)
-        self.frameLayout.addLayout(self.verticalLayout)
+        self.frameLayout.addWidget(self.tabBarWidget)
         self.setLayout(self.frameLayout)
 
     def setOrientation(self, orient):
@@ -499,6 +504,8 @@ class CollapsibleTabWidget(QWidget):
         tabButton = QPushButton(title, self)
         tabButton.clicked.connect(self.collapseStacks)
         self.tabBar.addWidget(tabButton, 0, Qt.AlignLeft)
+        self.stackTitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.stackTitle.setFixedHeight(titleBar.Height)
 
     def collapseStacks(self):
         if self.stackWidget.isVisible():
@@ -507,33 +514,7 @@ class CollapsibleTabWidget(QWidget):
         else:
             self.stackTitle.show()
             self.stackWidget.show()
-
-
-# widget for tab
-class CreateModel(QWidget):
-    def __init__(self, MLModel, parent=None):
-        super(CreateModel, self).__init__(parent=parent)
-        self.outLayout = QVBoxLayout(self)
-        self.insideLayout = QVBoxLayout(self)
-        self.insideWidget = QWidget(self)
-        self.scrollArea = QScrollArea(self)
-        self.modelFrame = QFrame(self)
-        self.displayWidget = QWidget(self)
-        self.tabWidget = CollapsibleTabWidget(self)
-        self.MLModel = MLModel
-        self.initUI()
-
-    def initUI(self):
-        self.insideLayout.addWidget(self.modelFrame)
-        self.insideLayout.addWidget(self.displayWidget)
-        self.insideWidget.setLayout(self.insideLayout)
-        self.scrollArea.setWidgetResizable(True)
-        scrollbar = QScrollBar(self)
-        self.scrollArea.setWidget(self.insideWidget)
-        self.scrollArea.setVerticalScrollBar(scrollbar)
-        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.outLayout.addWidget(self.scrollArea)
-        self.outLayout.addWidget(self.tabWidget)
+        self.doCollapse.emit()
 
 
 class testDialog(QDialog):
