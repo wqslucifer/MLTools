@@ -14,36 +14,8 @@ from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget
-from customLayout import FlowLayout
 from SwitchButton import switchButton
 
-
-# widget for tab
-class CreateModel(QWidget):
-    def __init__(self, MLModel, parent=None):
-        super(CreateModel, self).__init__(parent=parent)
-        self.outLayout = QVBoxLayout(self)
-        self.insideLayout = QVBoxLayout(self)
-        self.insideWidget = QWidget(self)
-        self.scrollArea = QScrollArea(self)
-        self.modelFrame = QFrame(self)
-        self.displayWidget = QWidget(self)
-        self.tabWidget = CollapsibleTabWidget(self)
-        self.MLModel = MLModel
-        self.initUI()
-
-    def initUI(self):
-        self.insideLayout.addWidget(self.modelFrame)
-        self.insideLayout.addWidget(self.displayWidget)
-        self.insideWidget.setLayout(self.insideLayout)
-        self.scrollArea.setWidgetResizable(True)
-        scrollbar = QScrollBar(self)
-        self.scrollArea.setWidget(self.insideWidget)
-        self.scrollArea.setVerticalScrollBar(scrollbar)
-        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.outLayout.addWidget(self.scrollArea)
-        self.outLayout.addWidget(self.tabWidget)
 
 
 class ml_model:
@@ -51,7 +23,7 @@ class ml_model:
         self.modelType = modelType
         self.modelName = modelName
         self.modelLocation = modelLocation
-        self.modelFile = os.path.join(self.modelLocation, self.modelName + '.md')
+        self.modelFile = os.path.join(self.modelLocation, self.modelName)
         self.param = dict()
         self.modelLogs = list()
         self.modelResults = list()
@@ -85,22 +57,3 @@ class ml_model:
             self.modelFile = os.path.join(self.modelLocation, modelFile + '.md')
         with open(self.modelFile, 'w') as f:
             json.dump(modelDict, f)
-
-
-class testDialog(QDialog):
-    def __init__(self):
-        super(testDialog, self).__init__()
-        self.mainLayout = QVBoxLayout(self)
-        self.setFixedSize(800, 500)
-        self.setLayout(self.mainLayout)
-        self.item = CreateModel(self)
-        self.item.tabWidget.addTab('test', QLabel('sdf'))
-        self.mainLayout.addWidget(self.item)
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    test = testDialog()
-    test.show()
-    # exceptionHandler.errorSignal.connect(something)
-    sys.exit(app.exec_())

@@ -2,27 +2,29 @@ import os
 import sys
 import time
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
-    QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget
+    QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
+    QScrollBar, QScrollArea
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon
+from model import ml_model
 
 
 # widgets for main window tabs
 
 class ModelWidget(QWidget):
     # signal
-    triggered = pyqtSignal()
+    triggered = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, modelFile):
         super(ModelWidget, self).__init__()
         self.setFixedSize(180, 180)
         self.mainLayout = QGridLayout(self)
         self.edge = None
         self.bgColor = None
         self.labelFont = QFont("Arial", 10, QFont.Bold)
-
+        self.MLModel = ml_model.loadModel(modelFile)
         # model type
-        self.modelTypeLabel = QLabel("xgboost")
+        self.modelTypeLabel = QLabel(self.MLModel.modelType)
         self.modelTypeLabel.setFont(QFont("Arial", 11, QFont.Bold))
         # model describe
         self.modelDescribeLabel = QLabel("Describe:")
@@ -88,7 +90,7 @@ class ModelWidget(QWidget):
     def mouseReleaseEvent(self, QMouseEvent):
         self.updateBgColor(QColor('#FF6A1D'))
         print("Model tab")
-        self.triggered.emit()
+        self.triggered.emit(self.MLModel.modelName)
 
     def setModel(self, ModelType, Describe=None):
         if isinstance(ModelType, str):
@@ -397,7 +399,7 @@ class TitleBar(QWidget):
         self.Title.setFont(self.font)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setHeight(50)
-        #self.CollapseButton.clicked.connect(self.onCollapseButtonClicked)
+        # self.CollapseButton.clicked.connect(self.onCollapseButtonClicked)
 
     def setTitle(self, title):
         self.Title.setText(title)
@@ -442,7 +444,7 @@ class CollapsibleTabWidget(QWidget):
         self.verticalLayout = None
         self.tabBar = None
         self.orientation = self.Horizontal
-        #self.orientation = self.Vertical
+        # self.orientation = self.Vertical
         self.stackTitle = None
         self.stackWidget = None
 
@@ -496,7 +498,7 @@ class CollapsibleTabWidget(QWidget):
         self.stackWidget.addWidget(widget)
         tabButton = QPushButton(title, self)
         tabButton.clicked.connect(self.collapseStacks)
-        self.tabBar.addWidget(tabButton,0,Qt.AlignLeft)
+        self.tabBar.addWidget(tabButton, 0, Qt.AlignLeft)
 
     def collapseStacks(self):
         if self.stackWidget.isVisible():
@@ -507,6 +509,33 @@ class CollapsibleTabWidget(QWidget):
             self.stackWidget.show()
 
 
+# widget for tab
+class CreateModel(QWidget):
+    def __init__(self, MLModel, parent=None):
+        super(CreateModel, self).__init__(parent=parent)
+        self.outLayout = QVBoxLayout(self)
+        self.insideLayout = QVBoxLayout(self)
+        self.insideWidget = QWidget(self)
+        self.scrollArea = QScrollArea(self)
+        self.modelFrame = QFrame(self)
+        self.displayWidget = QWidget(self)
+        self.tabWidget = CollapsibleTabWidget(self)
+        self.MLModel = MLModel
+        self.initUI()
+
+    def initUI(self):
+        self.insideLayout.addWidget(self.modelFrame)
+        self.insideLayout.addWidget(self.displayWidget)
+        self.insideWidget.setLayout(self.insideLayout)
+        self.scrollArea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        self.scrollArea.setWidget(self.insideWidget)
+        self.scrollArea.setVerticalScrollBar(scrollbar)
+        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.outLayout.addWidget(self.scrollArea)
+        self.outLayout.addWidget(self.tabWidget)
+
+
 class testDialog(QDialog):
     def __init__(self):
         super(testDialog, self).__init__()
@@ -514,7 +543,7 @@ class testDialog(QDialog):
         self.setFixedSize(800, 500)
         self.setLayout(self.mainLayout)
         self.item = CollapsibleTabWidget(self)
-        self.item.addTab('item1',QLabel('mainWidget',self))
+        self.item.addTab('item1', QLabel('mainWidget', self))
         self.mainLayout.addWidget(self.item)
 
 

@@ -11,12 +11,12 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, CreateModel
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from SwitchButton import switchButton
-from model import CreateModel, ml_model
+from model import ml_model
 from project import ml_project
 
 
@@ -127,7 +127,7 @@ class MainFrame(QMainWindow):
             self.MLProject.dumpProject(self.MLProject.projectName + '.mlproj')
             # create project open history
             if os.path.exists(os.path.join('./', 'setting.ml')):
-                #self.loadSetting(os.path.join('./', 'setting.ml'))
+                # self.loadSetting(os.path.join('./', 'setting.ml'))
                 pass
             else:
                 with open(os.path.join('./', 'setting.ml'), 'w') as _:
@@ -229,13 +229,15 @@ class MainFrame(QMainWindow):
                 self.startTabLayout.addWidget(sw)
         if self.MLProject.modelFiles:
             for d in self.MLProject.modelFiles:
-                mw = ModelWidget()
+                mw = ModelWidget(d)
                 mw.triggered.connect(self.addModelTab)
                 self.startTabLayout.addWidget(mw)
 
-    def addModelTab(self):
-        if os.path.exists(self.fullProjectDir):
-            raise Exception("project dir exist")
+    def addModelTab(self, modelName):
+        modelTab = CreateModel(self)
+        self.tabWindow.addTab(modelTab, modelName)
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(modelTab))
+        self.tabList.append(modelTab)
 
     def addDataTab(self, dataFile):
         scrollarea = QScrollArea(self)
@@ -397,6 +399,7 @@ class MainFrame(QMainWindow):
             self.tabWindow.addTab(c, dialog.modelName)
             self.tabWindow.setCurrentIndex(len(self.tabList))
             self.tabList.append(c)
+
 
 class createModelDialog(QDialog):
     def __init__(self, MLProject: ml_project):
