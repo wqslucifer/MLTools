@@ -67,7 +67,7 @@ class ml_model:
     def loadModel(cls, modelFile):
         with open(modelFile, 'r') as f:
             modelDict = json.load(f)
-            newModel = ml_project(modelDict['modelType', 'modelName', 'modelLocation'])
+            newModel = ml_model(modelDict['modelType'], modelDict['modelName'], modelDict['modelLocation'])
             newModel.param = modelDict['param']
             newModel.modelLogs = modelDict['modelLogs']
             newModel.modelResults = modelDict['modelResults']

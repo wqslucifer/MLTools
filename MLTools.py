@@ -42,6 +42,7 @@ class MainFrame(QMainWindow):
         self.MLProject = None
         self.fullProjectDir = None
         self.MLModels = list()
+        self.localsetting = dict()
         # start tab
         self.startTab = None
         self.startTabLayout = FlowLayout()
@@ -226,8 +227,8 @@ class MainFrame(QMainWindow):
                     sw = ScriptWidget('ipynb', d, self)
                 sw.triggered.connect(self.addScriptTab)
                 self.startTabLayout.addWidget(sw)
-        if self.MLProject.model:
-            for d in self.MLProject.model:
+        if self.MLProject.modelFiles:
+            for d in self.MLProject.modelFiles:
                 mw = ModelWidget()
                 mw.triggered.connect(self.addModelTab)
                 self.startTabLayout.addWidget(mw)
@@ -285,14 +286,23 @@ class MainFrame(QMainWindow):
     def addOpenHistory(self):
         # add item to tab
         projectOpenHistory = self.getSetting('projectOpenHistory')
+        NotExistProjects = []
         if projectOpenHistory:
             for d in projectOpenHistory.items():
-                projectItem = ProjectWidget(d[0], d[1])
-                projectItem.triggered.connect(self.openProject)
-                self.startTabLayout.addWidget(projectItem)
+                if os.path.exists(d[1][2]):
+                    projectItem = ProjectWidget(d[0], d[1])
+                    projectItem.triggered.connect(self.openProject)
+                    self.startTabLayout.addWidget(projectItem)
+                else:
+                    NotExistProjects.append(d[0])
         else:
             # add create project button to tab
             pass
+        if NotExistProjects:
+            for d in NotExistProjects:
+                projectOpenHistory.pop(d)
+            with open('setting.ml', 'w') as f:
+                json.dump(self.localsetting, f)
 
     def openProject(self, projectFile):
         self.MLProject = ml_project.loadProject(projectFile)
@@ -324,17 +334,17 @@ class MainFrame(QMainWindow):
     def getSetting(self, key):
         if os.path.exists('setting.ml'):
             with open('setting.ml', 'r') as f:
-                setting = json.load(f)
-                return setting[key]
+                self.localsetting = json.load(f)
+                return self.localsetting[key]
         else:
             return None
 
     def initSetting(self):
         if not os.path.exists('setting.ml'):
-            setting = dict()
-            setting['projectOpenHistory'] = dict()  # element: {'projectName':[time, projectDir, projectFile]}
+            self.localsetting = dict()
+            self.localsetting['projectOpenHistory'] = dict()  # element: {'projectName':[time, projectDir, projectFile]}
             with open('setting.ml', 'w') as f:
-                json.dump(setting, f)
+                json.dump(self.localsetting, f)
 
     def closeEvent(self, *args, **kwargs):
         del self.trayIcon
@@ -381,7 +391,6 @@ class MainFrame(QMainWindow):
             self.MLModels.append(newModel)
             newModel.dumpModel()
             self.MLProject.modelFiles.append(newModel.modelFile)
-            self.MLProject.model.append(newModel)
             self.MLProject.dumpProject(self.MLProject.projectFile)
             # add tab and jump to it
             c = CreateModel(newModel)
@@ -682,6 +691,7 @@ class AddFileDialog(QDialog):
         s = ''
         for f in self.modelFiles:
             s += (os.path.basename(f) + ',')
+            self.MLProject.modelFiles.append(f)
         s = s[:-1]
         self.addModelEdit.setText(s)
 

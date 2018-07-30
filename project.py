@@ -79,7 +79,6 @@ class ml_project:
             newProject.projectDir = projectDict['projectDir']
             newProject.projectFile = projectDict['projectFile']
             newProject.description = projectDict['description']
-            newProject.model = projectDict['model']
             newProject.modelFiles = projectDict['modelFiles']
             newProject.scriptFiles = projectDict['scriptFiles']
             newProject.resultFiles = projectDict['resultFiles']
@@ -95,7 +94,6 @@ class ml_project:
         projectDict['projectDir'] = self.projectDir
         projectDict['projectFile'] = self.projectFile
         projectDict['description'] = self.description
-        projectDict['model'] = self.model
         projectDict['modelFiles'] = self.modelFiles
         projectDict['scriptFiles'] = self.scriptFiles
         projectDict['resultFiles'] = self.resultFiles
