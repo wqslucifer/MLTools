@@ -533,6 +533,7 @@ class CollapsibleTabWidget(QWidget):
         self.stackTitle.setCurrentIndex(index)
         self.stackWidget.setCurrentIndex(index)
 
+
 class customPushButton(QPushButton):
     clicked_index = pyqtSignal(int)
 

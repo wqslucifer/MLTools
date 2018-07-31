@@ -16,6 +16,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
 from SwitchButton import switchButton
 
+
 class ml_model:
     def __init__(self, modelType, modelName, modelLocation):
         self.modelType = modelType
@@ -27,7 +28,7 @@ class ml_model:
         self.LBScore = 0
         self.currentLoadData = 'N/A'
         self.modelFile = os.path.join(self.modelLocation, self.modelName)
-        self.param = dict()
+        self.param = self.initParam(modelType)
         self.modelLogs = list()
         self.modelResults = list()
 
@@ -70,3 +71,59 @@ class ml_model:
             self.modelFile = os.path.join(self.modelLocation, modelFile + '.md')
         with open(self.modelFile, 'w') as f:
             json.dump(modelDict, f)
+
+    def update(self):
+        self.dumpModel(self.modelFile)
+        print('update')
+
+    def initParam(self, modelType):
+        param = {}
+        if modelType == 'XGB':
+            # General Parameters
+            param['booster'] = 'gbtree'
+            param['objective'] = 'reg:linear'
+            param['silent'] = 0
+            param['nthread'] = 1
+            # Parameters for Tree Booster
+            param['eta'] = 0.3
+            param['gamma'] = 0
+            param['max_depth'] = 6
+            param['min_child_weight'] = 1
+            param['max_delta_step'] = 0
+            param['subsample'] = 1
+            param['colsample_bytree'] = 1
+            param['colsample_bylevel'] = 1
+            param['reg_lambda'] = 1
+            param['reg_alpha'] = 0
+            param['tree_method'] = 'auto'
+            param['scale_pos_weight'] = 1
+            param['max_leaves'] = 0
+            param['max_bin'] = 256
+            param['predictor'] = 'cpu_predictor'
+            param['eval_metric'] = 'rmse'
+        elif modelType == 'LGBM':
+            param['eta'] = 0
+        elif modelType == 'LINEAR':
+            param['eta'] = 0
+        return param
+
+
+class xgbModel:
+    def __init__(self, param, train, test=None, kFold=5, metric='rmse'):
+        self.train = train
+        self.test = test
+        self.kFold = kFold
+        self.metric = metric
+        self.param = param
+
+    def fit(self):
+        pass
+
+    def predict(self):
+        pass
+
+    def predictProb(self):
+        pass
+
+    def setParam(self):
+        pass

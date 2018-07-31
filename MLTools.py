@@ -13,7 +13,7 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget
 from customLayout import FlowLayout
-from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, CreateModel
+from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from SwitchButton import switchButton
 from model import ml_model
@@ -237,7 +237,7 @@ class MainFrame(QMainWindow):
                 self.startTabLayout.addWidget(mw)
 
     def addModelTab(self, MLModel:ml_model):
-        modelTab = CreateModel(MLModel, self)
+        modelTab = ModelTabWidget(MLModel, self.MLProject, self)
         self.tabWindow.addTab(modelTab, MLModel.modelName)
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(modelTab))
         self.tabList.append(modelTab)
@@ -399,7 +399,7 @@ class MainFrame(QMainWindow):
             self.MLProject.modelFiles.append(newModel.modelFile)
             self.MLProject.dumpProject(self.MLProject.projectFile)
             # add tab and jump to it
-            c = CreateModel(newModel)
+            c = ModelTabWidget(newModel, self.MLProject)
             self.tabWindow.addTab(c, dialog.modelName)
             self.tabWindow.setCurrentIndex(len(self.tabList))
             self.tabList.append(c)
@@ -487,7 +487,6 @@ class createModelDialog(QDialog):
                                                                       self.MLProject.modelDir),
                                                          options=options)
         self.modelLocationEdit.setText(os.path.abspath(os.path.join(self.MLProject.projectDir, self.modelName)))
-
 
 
 
