@@ -26,6 +26,7 @@ class ml_model:
         self.modelLastRunTime = 0
         self.localScore = 0
         self.LBScore = 0
+        self.metric = 'rmse'
         self.currentLoadData = 'N/A'
         self.modelFile = os.path.join(self.modelLocation, self.modelName)
         self.param = self.initParam(modelType)
@@ -51,6 +52,7 @@ class ml_model:
             newModel.modelLastRunTime = modelDict['modelLastRunTime']
             newModel.localScore = modelDict['localScore']
             newModel.LBScore = modelDict['LBScore']
+            newModel.metric = modelDict['metric']
             newModel.currentLoadData = modelDict['currentLoadData']
             return newModel
 
@@ -66,9 +68,10 @@ class ml_model:
         modelDict['modelLastRunTime'] = self.modelLastRunTime
         modelDict['localScore'] = self.localScore
         modelDict['LBScore'] = self.LBScore
+        modelDict['metric'] = self.metric
         modelDict['currentLoadData'] = self.currentLoadData
         if modelFile:
-            self.modelFile = os.path.join(self.modelLocation, modelFile + '.md')
+            self.modelFile = os.path.join(self.modelLocation, modelFile)
         with open(self.modelFile, 'w') as f:
             json.dump(modelDict, f)
 

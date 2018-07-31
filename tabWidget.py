@@ -2,7 +2,7 @@ import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox
+    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel
@@ -391,258 +391,194 @@ class ModelTabWidget(QWidget):
     from project import ml_project
     def __init__(self, MLModel: ml_model, MLProject: ml_project, parent=None):
         super(ModelTabWidget, self).__init__(parent=parent)
-        self.outLayout = QVBoxLayout(self)
-        self.insideLayout = QVBoxLayout(self)
-        self.insideWidget = QWidget(self)
-        self.splitterMain = QSplitter(Qt.Vertical)
-        self.scrollArea = QScrollArea(self)
-        self.modelFrame = QFrame(self)
-        self.displayWidget = QWidget(self)
-        self.tabWidget = CollapsibleTabWidget(self)
-        self.MLModel = MLModel
         self.MLProject = MLProject
-        self.settingDialog = ModelSettingDialog(MLModel, MLProject, self)
-        # tab widget
-        self.outputEditor = QTextEdit(self)
-        self.resultList = QListWidget(self)
-        self.logList = QListWidget(self)
+        self.MLModel = MLModel
+        self.outLayout = QVBoxLayout(self)
+        self.statusFrame = QFrame(self)
+        self.statusLayout = QGridLayout(self)
+        self.runButton = QPushButton('Run',self)
+        self.stopButton = QPushButton('Stop',self)
+        self.addButton = QPushButton('Add',self)
 
-        self.currentLoadDataLabel = None
+        self.settingLayout = QHBoxLayout(self)
+        self.modelInfo = QGroupBox(self)
+        self.modelParam = QGroupBox(self)
+        self.modelData = QGroupBox(self)
 
+        self.modelInfoScroll = QScrollArea(self)
+        self.modelParamScroll = QScrollArea(self)
+        self.modelDataScroll = QScrollArea(self)
+
+        self.modelInfoLayout = QFormLayout(self)
+        self.modelParamLayout = QFormLayout(self)
+        self.modelDataLayout = QFormLayout(self)
         self.initUI()
-        self.initTabs()
-        self.initModelFrame()
-        self.tabWidget.doCollapse.connect(self.CollapseTab)
+        self.initModelInfo()
+        self.initXGBParam()
+        self.initData()
 
     def initUI(self):
-        self.insideLayout.addWidget(self.modelFrame, 1)
-        self.insideLayout.addWidget(self.displayWidget, 5)
-        self.insideWidget.setLayout(self.insideLayout)
-        self.scrollArea.setWidgetResizable(True)
-        self.modelFrame.setFixedHeight(180)
+        self.setLayout(self.outLayout)
+        self.outLayout.addWidget(self.statusFrame)
+        self.outLayout.addLayout(self.settingLayout)
+        self.outLayout.setStretch(0, 1)
+        self.outLayout.setStretch(1, 4)
+        self.statusFrame.setLayout(self.statusLayout)
+        self.statusLayout.addWidget(QLabel('Model Name'), 0, 0)
+        self.statusLayout.addWidget(self.runButton, 0, 5)
+        self.statusLayout.addWidget(self.stopButton, 1, 5)
+        self.statusLayout.addWidget(self.addButton, 2, 5)
 
-        scrollbar = QScrollBar(self)
-        self.scrollArea.setWidget(self.insideWidget)
-        self.scrollArea.setVerticalScrollBar(scrollbar)
-        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.splitterMain.addWidget(self.scrollArea)
-        self.splitterMain.addWidget(self.tabWidget)
-        self.outLayout.addWidget(self.splitterMain)
+        l = QHBoxLayout(self)
+        l.addWidget(self.modelInfoScroll)
+        self.modelInfo.setLayout(l)
+        self.modelInfoScroll.setWidgetResizable(True)
+        t = QWidget(self)
+        t.setLayout(self.modelInfoLayout)
+        self.modelInfoScroll.setWidget(t)
+        self.modelInfoScroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-        self.splitterMain.setStretchFactor(0, 4)
-        self.splitterMain.setStretchFactor(1, 1)
-        self.splitterMain.setCollapsible(0, False)
-        self.splitterMain.setCollapsible(1, False)
+        l = QHBoxLayout(self)
+        l.addWidget(self.modelParamScroll)
+        self.modelParam.setLayout(l)
+        self.modelParamScroll.setWidgetResizable(True)
+        t = QWidget(self)
+        t.setLayout(self.modelParamLayout)
+        self.modelParamScroll.setWidget(t)
+        self.modelParamScroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-    def initTabs(self):
-        self.tabWidget.addTab('Output', self.outputEditor)
-        self.tabWidget.addTab('Results', self.resultList)
-        self.tabWidget.addTab('Logs', self.logList)
+        l = QHBoxLayout(self)
+        l.addWidget(self.modelDataScroll)
+        self.modelData.setLayout(l)
+        self.modelDataScroll.setWidgetResizable(True)
+        t = QWidget(self)
+        t.setLayout(self.modelDataLayout)
+        self.modelDataScroll.setWidget(t)
+        self.modelDataScroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-    def initModelFrame(self):
-        modelFrameLayout = QGridLayout(self)
-        runButton = QPushButton('RUN', self)
-        stopButton = QPushButton('STOP', self)
-        settingButton = QPushButton('Setting', self)
-        settingButton.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        runButton.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        stopButton.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.modelFrame.setFrameShape(QFrame.Box)
-        self.modelFrame.setFrameShadow(QFrame.Raised)
-        self.modelFrame.setLayout(modelFrameLayout)
-        modelFrameLayout.addWidget(QLabel('Model Name: ' + self.MLModel.modelName), 0, 0)
-        modelFrameLayout.addWidget(QLabel('Model Type: ' + self.MLModel.modelType), 0, 1)
-        modelFrameLayout.addWidget(QLabel('Platform: ' + self.MLModel.modelPlatform), 0, 2)
-        modelFrameLayout.addWidget(settingButton, 0, 4)
+        self.settingLayout.addWidget(self.modelInfo)
+        self.settingLayout.addWidget(self.modelParam)
+        self.settingLayout.addWidget(self.modelData)
 
-        modelFrameLayout.addWidget(QLabel('Last RunTime: ' + str(datetime.timedelta(self.MLModel.modelLastRunTime))), 1,
-                                   0)
-        self.currentLoadDataLabel = QLabel('Data: ' + self.MLModel.currentLoadData)
-        modelFrameLayout.addWidget(self.currentLoadDataLabel, 1, 1, 1, 1)
-        modelFrameLayout.addWidget(runButton, 1, 4)
+        self.modelInfo.setTitle('Model')
+        self.modelParam.setTitle('Param')
+        self.modelData.setTitle('Data')
 
-        modelFrameLayout.addWidget(QLabel('Local Score: ' + str(self.MLModel.localScore)), 2, 0)
-        modelFrameLayout.addWidget(QLabel('LB Score: ' + str(self.MLModel.LBScore)), 2, 1)
-        modelFrameLayout.addWidget(stopButton, 2, 4)
+    def initModelInfo(self):
+        self.modelInfoLayout.setContentsMargins(15, 20, 15, 10)
 
-        paramLabel = QLineEdit(self)
-        paramLabel.setText(str(self.MLModel.param))
-        modelFrameLayout.addWidget(QLabel('Param: '), 3, 0, 1, 1)
-        modelFrameLayout.addWidget(paramLabel, 3, 1, 1, 2)
-        modelFrameLayout.setSpacing(5)
-        modelFrameLayout.setColumnStretch(0, 1)
-        modelFrameLayout.setColumnStretch(1, 1)
-        modelFrameLayout.setColumnStretch(2, 1)
-        modelFrameLayout.setColumnStretch(3, 2)
-        modelFrameLayout.setColumnStretch(4, 1)
-        settingButton.clicked.connect(self.setting)
-        runButton.clicked.connect(self.runModel)
+        algorithm = QComboBox(self)
+        algorithm.addItems(['xgboost', 'lightGBM', 'random forest'])
+        self.modelInfoLayout.addRow('Algorithm: ', algorithm)
+        metric = QComboBox(self)
+        metric.addItems(['rmse', 'auc', 'logloss', 'error'])
+        self.modelInfoLayout.addRow('Metric: ', metric)
+        kFold = QSpinBox(self)
+        kFold.setRange(0, 10)
+        kFold.setSingleStep(1)
+        kFold.setValue(5)
+        self.modelInfoLayout.addRow('kFold: ', kFold)
+        resultFile = QLineEdit(self)
+        resultFileCheck = QCheckBox(self)
+        resultFileCheck.setText('not save result')
+        resultFile.setText('model.result')
+        self.modelInfoLayout.addRow('result file: ', resultFile)
+        self.modelInfoLayout.addRow('', resultFileCheck)
+        resultFileCheck.stateChanged.connect(lambda: resultFile.setDisabled(resultFileCheck.checkState()))
 
-    def CollapseTab(self):
-        if self.tabWidget.stackWidget.isVisible():
-            self.splitterMain.setSizes([10000, 1])
-            self.splitterMain.handle(1).setEnabled(True)
-        else:
-            self.splitterMain.setSizes([10000, 1])
-            self.splitterMain.handle(1).setEnabled(False)
+    def initXGBParam(self):
+        self.modelParamLayout.setContentsMargins(15, 20, 15, 10)
 
-    def setting(self):
-        r = self.settingDialog.exec()
-        if r == QDialog.Accepted:
-            self.currentLoadDataLabel.setText('Data: ' + self.MLModel.currentLoadData)
+        objective = QComboBox(self)
+        objective.addItems(
+            ['reg:linear', 'reg:logistic', 'binary:logistic', 'binary:logitraw', 'count:poisson', 'reg:gamma'])
+        self.modelParamLayout.addRow('objective: ', objective)
 
-    def runModel(self):
-        if self.MLModel.modelType == 'XGB':
-            pass
+        learning_rate = QDoubleSpinBox(self)
+        learning_rate.setRange(0, 1)
+        learning_rate.setValue(0.3)
+        learning_rate.setSingleStep(0.01)
+        self.modelParamLayout.addRow('learning_rate: ', learning_rate)
 
+        gamma = QDoubleSpinBox(self)
+        gamma.setMinimum(0)
+        gamma.setSingleStep(0.1)
+        gamma.setValue(0)
+        self.modelParamLayout.addRow('gamma: ', gamma)
 
-class ModelSettingDialog(QDialog):
-    from project import ml_project
-    from model import ml_model
-    def __init__(self, MLModel: ml_model, MLProject: ml_project, parent=None):
-        super(ModelSettingDialog, self).__init__(parent=parent)
-        self.setFixedSize(400, 550)
-        self.scrollarea = QScrollArea(self)
-        self.scrollarea.setWidgetResizable(True)
-        self.scrollbar = QScrollBar(self)
-        self.scrollarea.setVerticalScrollBar(self.scrollbar)
-        self.scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        #
-        self.mainLayout = QGridLayout(self)
-        self.scrollarea.setLayout(self.mainLayout)
-        self.outLayout = QVBoxLayout(self)
-        self.setLayout(self.mainLayout)
-        self.outLayout.addWidget(self.scrollarea, 4)
-        self.dataSelect = QComboBox(self)
-        self.dataSelect.addItems(MLProject.dataFiles_csv)
-        self.dataSelect.addItems(MLProject.dataFiles_pkl)
+        max_depth = QSpinBox(self)
+        max_depth.setMinimum(0)
+        max_depth.setValue(6)
+        self.modelParamLayout.addRow('max_depth: ', max_depth)
 
-        self.confirmButton = QPushButton('Confirm', self)
-        self.cancelButton = QPushButton('Cancel', self)
-        self.confirmButton.clicked.connect(self.onConfirm)
-        buttonLayout = QHBoxLayout(self)
-        buttonLayout.addWidget(self.confirmButton)
-        buttonLayout.addWidget(self.cancelButton)
-        self.outLayout.addLayout(buttonLayout, 1)
-        self.dataSelect.currentIndexChanged.connect(
-            lambda: self.setParam('currentIndexChanged', self.dataSelect.currentText()))
-        # local data
-        self.modelType = MLModel.modelType
-        self.MLModel = MLModel
-        self.currentModel = None
-        self.param = MLModel.param
-        self.MLModel.currentLoadData = self.dataSelect.currentText()
+        min_child_weight = QDoubleSpinBox(self)
+        min_child_weight.setMinimum(0)
+        min_child_weight.setSingleStep(0.1)
+        min_child_weight.setValue(1)
+        self.modelParamLayout.addRow('min_child_weight: ', min_child_weight)
 
-        if self.modelType == 'XGB':
-            self.init_XGB()
-        elif self.modelType == 'LGBM':
-            self.init_LGBM()
-        elif self.modelType == 'LINEAR':
-            self.init_LINEAR()
+        max_delta_step = QDoubleSpinBox(self)
+        max_delta_step.setMinimum(0)
+        max_delta_step.setSingleStep(0.1)
+        max_delta_step.setValue(0)
+        self.modelParamLayout.addRow('max_delta_step: ', max_delta_step)
 
-    def init_XGB(self):
-        # init params
-        # init widgets
-        self.eta = QDoubleSpinBox(self)
-        self.eta.setRange(0, 1)
-        self.eta.setSingleStep(0.1)
-        self.eta.setValue(self.param['eta'])
-        self.eta.valueChanged.connect(lambda: self.setParam('eta', self.eta.value()))
+        subsample = QDoubleSpinBox(self)
+        subsample.setMinimum(0.01)
+        subsample.setSingleStep(0.1)
+        subsample.setValue(1)
+        self.modelParamLayout.addRow('subsample: ', subsample)
 
-        self.gamma = QDoubleSpinBox(self)
-        self.gamma.setMinimum(0)
-        self.gamma.setSingleStep(0.1)
-        self.gamma.setValue(self.param['gamma'])
-        self.gamma.valueChanged.connect(lambda: self.setParam('gamma', self.gamma.value()))
+        colsample_bytree = QDoubleSpinBox(self)
+        colsample_bytree.setMinimum(0.01)
+        colsample_bytree.setSingleStep(0.1)
+        colsample_bytree.setValue(1)
+        self.modelParamLayout.addRow('colsample_bytree: ', colsample_bytree)
 
-        self.max_depth = QSpinBox(self)
-        self.max_depth.setMinimum(0)
-        self.max_depth.setSingleStep(1)
-        self.max_depth.setValue(self.param['max_depth'])
-        self.max_depth.valueChanged.connect(lambda: self.setParam('max_depth', self.max_depth.value()))
+        colsample_bylevel = QDoubleSpinBox(self)
+        colsample_bylevel.setMinimum(0.01)
+        colsample_bylevel.setSingleStep(0.1)
+        colsample_bylevel.setValue(1)
+        self.modelParamLayout.addRow('colsample_bylevel: ', colsample_bylevel)
 
-        self.min_child_weight = QDoubleSpinBox(self)
-        self.min_child_weight.setMinimum(0)
-        self.min_child_weight.setSingleStep(0.1)
-        self.min_child_weight.setValue(self.param['min_child_weight'])
-        self.min_child_weight.valueChanged.connect(
-            lambda: self.setParam('min_child_weight', self.min_child_weight.value()))
+        reg_lambda = QDoubleSpinBox(self)
+        reg_lambda.setMinimum(0)
+        reg_lambda.setSingleStep(0.1)
+        reg_lambda.setValue(1)
+        self.modelParamLayout.addRow('reg_lambda: ', reg_lambda)
 
-        self.max_delta_step = QDoubleSpinBox(self)
-        self.max_delta_step.setMinimum(0)
-        self.max_delta_step.setSingleStep(0.1)
-        self.max_delta_step.setValue(self.param['max_delta_step'])
-        self.max_delta_step.valueChanged.connect(lambda: self.setParam('max_delta_step', self.max_delta_step.value()))
+        reg_alpha = QDoubleSpinBox(self)
+        reg_alpha.setMinimum(0)
+        reg_alpha.setSingleStep(0.1)
+        reg_alpha.setValue(0)
+        self.modelParamLayout.addRow('reg_alpha: ', reg_alpha)
 
-        self.subsample = QDoubleSpinBox(self)
-        self.subsample.setRange(0.01, 1)
-        self.subsample.setSingleStep(0.1)
-        self.subsample.setValue(self.param['subsample'])
-        self.subsample.valueChanged.connect(lambda: self.setParam('subsample', self.subsample.value()))
+        tree_method = QComboBox(self)
+        tree_method.addItems(['auto', 'exact', 'approx', 'hist', 'gpu_exact', 'gpu_hist'])
+        self.modelParamLayout.addRow('tree_method: ', tree_method)
 
-        self.colsample_bytree = QDoubleSpinBox(self)
-        self.colsample_bytree.setRange(0.01, 1)
-        self.colsample_bytree.setSingleStep(0.1)
-        self.colsample_bytree.setValue(self.param['colsample_bytree'])
-        self.colsample_bytree.valueChanged.connect(
-            lambda: self.setParam('colsample_bytree', self.colsample_bytree.value()))
+        scale_pos_weight = QDoubleSpinBox(self)
+        scale_pos_weight.setMinimum(0)
+        scale_pos_weight.setSingleStep(0.1)
+        scale_pos_weight.setValue(1)
+        self.modelParamLayout.addRow('scale_pos_weight: ', scale_pos_weight)
 
-        self.colsample_bylevel = QDoubleSpinBox(self)
-        self.colsample_bylevel.setRange(0.01, 1)
-        self.colsample_bylevel.setSingleStep(0.1)
-        self.colsample_bylevel.setValue(self.param['colsample_bylevel'])
-        self.colsample_bylevel.valueChanged.connect(
-            lambda: self.setParam('colsample_bylevel', self.colsample_bylevel.value()))
+        predictor = QComboBox(self)
+        predictor.addItems(['cpu_predictor', 'gpu_predictor'])
+        self.modelParamLayout.addRow('predictor: ', predictor)
 
-        self.reg_lambda = QDoubleSpinBox(self)
-        self.reg_lambda.setMinimum(0)
-        self.reg_lambda.setSingleStep(0.1)
-        self.reg_lambda.setValue(self.param['reg_lambda'])
-        self.reg_lambda.valueChanged.connect(lambda: self.setParam('reg_lambda', self.reg_lambda.value()))
+    def initData(self):
+        self.modelDataLayout.setContentsMargins(10, 20, 10, 10)
 
-        self.reg_alpha = QDoubleSpinBox(self)
-        self.reg_alpha.setMinimum(0)
-        self.reg_alpha.setSingleStep(0.1)
-        self.reg_alpha.setValue(self.param['reg_alpha'])
-        self.reg_alpha.valueChanged.connect(lambda: self.setParam('reg_alpha', self.reg_alpha.value()))
+        trainSet = QComboBox(self)
+        trainSet.addItems(self.MLProject.dataFiles_pkl)
+        trainSet.addItems(self.MLProject.dataFiles_csv)
+        self.modelDataLayout.addRow('trainSet: ', trainSet)
 
-        self.predictor = QComboBox(self)
-        self.predictor.addItems(['cpu_predictor', 'gpu_predictor'])
-
-        editorList = {
-            'eta': self.eta,
-            'gamma': self.gamma,
-            'max_depth': self.max_depth,
-            'min_child_weight': self.min_child_weight,
-            'max_delta_step': self.max_delta_step,
-            'subsample': self.subsample,
-            'colsample_bytree': self.colsample_bytree,
-            'colsample_bylevel': self.colsample_bylevel,
-            'reg_lambda': self.reg_lambda,
-            'reg_alpha': self.reg_alpha,
-            'predictor': self.predictor
-        }
-        # set layout
-        self.mainLayout.addWidget(QLabel('data: '), 0, 0, 1, 1)
-        self.mainLayout.addWidget(self.dataSelect, 0, 1, 1, 3)
-        self.mainLayout.addWidget(QLabel('param'), 1, 0, 1, 1)
-
-        for i, d in enumerate(editorList.items()):
-            self.mainLayout.addWidget(QLabel(d[0] + ':'), 2 + i, 0, 1, 1)
-            self.mainLayout.addWidget(d[1], 2 + i, 1, 1, 3)
-
-        self.mainLayout.addWidget(self.confirmButton, 4 + len(editorList), 2, 1, 1, Qt.AlignRight)
-        self.mainLayout.addWidget(self.cancelButton, 4 + len(editorList), 3, 1, 1, Qt.AlignRight)
-
-        self.mainLayout.setRowStretch(3 + len(editorList), 1)
-        self.mainLayout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-
-    def setParam(self, key, value):
-        self.MLModel.param[key] = value
-        self.MLModel.update()
-
-    def onConfirm(self):
-        self.done(QDialog.Accepted)
+        testSet = QComboBox(self)
+        testSet.addItems(self.MLProject.dataFiles_pkl)
+        testSet.addItems(self.MLProject.dataFiles_csv)
+        self.modelDataLayout.addRow('trainSet: ', testSet)
 
 
 class testDialog(QDialog):

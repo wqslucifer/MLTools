@@ -32,15 +32,16 @@ class ModelWidget(QWidget):
         # model describe
         self.modelDescribeLabel = QLabel("Describe:")
         # local eval
-        self.evalMetric = QLabel("AUC: ")
-        self.evalScore = QLabel("0.50000")
+        self.evalMetric = self.MLModel.metric
+        self.evalScore = self.MLModel.localScore
         # data set
-        self.dataSetLabel = QLabel("Data No.001")
+        self.dataSetLabel = QLabel(os.path.basename(self.MLModel.currentLoadData),self) \
+            if self.MLModel.currentLoadData else QLabel('N/A',self)
         self.dataSetLabel.setFont(QFont("Arial", 10, QFont.Bold))
         # self.dataSetLabel.setToolTip()
         # LB eval score
         self.leaderBoardLabel = QLabel("LB: ")
-        self.LBScore = QLabel("0.56788")
+        self.LBScore = QLabel(str(self.MLModel.LBScore), self)
         self.initUI()
 
     def initUI(self):
@@ -50,7 +51,8 @@ class ModelWidget(QWidget):
         self.mainLayout.addWidget(self.modelName, 0, 0, Qt.AlignTop)
         self.mainLayout.addWidget(self.modelTypeLabel, 1, 0, Qt.AlignTop)
         # local cv item
-        evalLayout = self.createNewHLayout(self.evalMetric, self.evalScore, self.labelFont)
+        evalLayout = self.createNewHLayout(QLabel(self.evalMetric + ': ', self), QLabel(str(self.evalScore), self),
+                                           self.labelFont)
         self.mainLayout.addLayout(evalLayout, 2, 0)
         # LB item
         LBLayout = self.createNewHLayout(self.leaderBoardLabel, self.LBScore, self.labelFont)
@@ -465,6 +467,8 @@ class CollapsibleTabWidget(QWidget):
         self.tabBarWidget.setStyleSheet('background-color: #B2B2B2;')
         self.stackTitle.setStyleSheet('background-color: #B2B2B2;')
         self.tabBarWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.stackTitle.hide()
+        self.stackWidget.hide()
 
     def initHorizontalUI(self):
         self.frameLayout = QVBoxLayout(self)
