@@ -417,9 +417,20 @@ class ModelTabWidget(QWidget):
         self.modelDataLayout = QFormLayout(self)
         # local
         self.metric = QComboBox(self)
-        self.xgb_metric = ['rmse', 'auc', 'logloss', 'error']
-        self.lightGBM_metric = ['rmse', 'auc']
-        self.metric_map = {'xgboost':self.xgb_metric, 'lightGBM':self.lightGBM_metric, 'random forest':None}
+        self.xgb_metric = ['rmse', 'auc', 'logloss', 'error', 'error@t', 'merror', 'mlogloss', 'ndcg']
+        self.lightGBM_metric = ['', 'mean_absolute_error', 'mean_squared_error', 'root_mean_squared_error', 'quantile',
+                                'None', 'auc', 'mean_average_precision', 'binary_logloss', 'binary_error',
+                                'mean_absolute_percentage_error']
+        self.sklearn_classification_metric = ['accuracy_score', 'auc', 'average_precision_score', 'brier_score_loss',
+                                              'classification_report', 'cohen_kappa_score', 'confusion_matrix',
+                                              'f1_score',
+                                              'fbeta_score', 'hamming_loss', 'log_loss', 'precision_recall_curve',
+                                              'precision_recall_fscore_support', 'precision_score', 'recall_score',
+                                              'roc_auc_score',
+                                              'roc_curve', 'zero_one_loss']
+        self.sklearn_regression_metric = ['explained_variance_score', 'mean_absolute_error', 'mean_squared_error',
+                                          'mean_squared_log_error', 'median_absolute_error', 'r2_score']
+        self.metric_map = {'XGB': self.xgb_metric, 'LGBM': self.lightGBM_metric, 'RandomForest': None}
 
         self.initUI()
         self.initModelInfo()
@@ -475,23 +486,30 @@ class ModelTabWidget(QWidget):
 
     def initModelInfo(self):
         self.modelInfoLayout.setContentsMargins(15, 20, 15, 10)
-
         algorithm = QComboBox(self)
-        algorithm.addItems(['xgboost', 'lightGBM', 'random forest'])
-        algorithm.currentTextChanged.connect(lambda :self.setMetric(self.metric_map[algorithm.currentText()]))
+        algorithm.addItems(['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet'])
+        algorithm.currentTextChanged.connect(lambda: self.setMetricSet(self.metric_map[algorithm.currentText()]))
+        algorithm.currentTextChanged.connect(lambda: self.MLModel.setModelType(algorithm.currentText()))
         self.modelInfoLayout.addRow('Algorithm: ', algorithm)
 
-        if algorithm.currentText() == 'xgboost':
-            self.setMetric(self.xgb_metric)
-        elif algorithm.currentText() == 'lightGBM':
-            self.setMetric(self.lightGBM_metric)
+        if algorithm.currentText() == 'XGB':
+            self.setMetricSet(self.xgb_metric)
+        elif algorithm.currentText() == 'LGBM':
+            self.setMetricSet(self.lightGBM_metric)
+        elif algorithm.currentText() == 'RandomForest':
+            self.setMetricSet(self.sklearn_classification_metric + self.sklearn_regression_metric)
+        else:
+            self.metric.currentText('N/A')
         self.modelInfoLayout.addRow('Metric: ', self.metric)
+        self.metric.currentTextChanged.connect(lambda: self.MLModel.setMetric(self.metric.currentText()))
 
         kFold = QSpinBox(self)
         kFold.setRange(0, 10)
         kFold.setSingleStep(1)
         kFold.setValue(5)
         self.modelInfoLayout.addRow('kFold: ', kFold)
+        kFold.valueChanged.connect(lambda: self.MLModel.setKFold(kFold.value()))
+
         resultFile = QLineEdit(self)
         resultFileCheck = QCheckBox(self)
         resultFileCheck.setText('not save result')
@@ -502,11 +520,11 @@ class ModelTabWidget(QWidget):
 
     def initXGBParam(self):
         self.modelParamLayout.setContentsMargins(15, 20, 15, 10)
-
         objective = QComboBox(self)
         objective.addItems(
             ['reg:linear', 'reg:logistic', 'binary:logistic', 'binary:logitraw', 'count:poisson', 'reg:gamma'])
         self.modelParamLayout.addRow('objective: ', objective)
+        objective.currentTextChanged.connect(lambda: self.setParam('objective', objective.currentText()))
 
         learning_rate = QDoubleSpinBox(self)
         learning_rate.setRange(0, 1)
@@ -601,22 +619,27 @@ class ModelTabWidget(QWidget):
         trainSet = QComboBox(self)
         trainSet.addItems(self.MLProject.dataFiles_pkl)
         trainSet.addItems(self.MLProject.dataFiles_csv)
-        self.modelDataLayout.addRow('trainSet: ', trainSet)
+        self.modelDataLayout.addRow('train Set: ', trainSet)
+        trainSet.currentTextChanged.connect(lambda: self.MLModel.setTrainSet(trainSet.currentText()))
 
         testSet = QComboBox(self)
         testSet.addItems(self.MLProject.dataFiles_pkl)
         testSet.addItems(self.MLProject.dataFiles_csv)
-        self.modelDataLayout.addRow('trainSet: ', testSet)
+        self.modelDataLayout.addRow('test Set: ', testSet)
+        testSet.currentTextChanged.connect(lambda: self.MLModel.setTestSet(testSet.currentText()))
 
     def setParam(self, key, value):
         self.MLModel.param[key] = value
         self.modelParamDict[key] = value
         self.MLModel.update()
 
-    def setMetric(self, metrics):
+    def setMetricSet(self, metrics):
         self.metric.clear()
         if metrics:
             self.metric.addItems(metrics)
+        else:
+            self.metric.addItems(self.sklearn_regression_metric + self.sklearn_classification_metric)
+
 
 class testDialog(QDialog):
     def __init__(self):

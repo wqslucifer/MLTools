@@ -26,12 +26,15 @@ class ml_model:
         self.modelLastRunTime = 0
         self.localScore = 0
         self.LBScore = 0
+        self.kFold = 5
         self.metric = 'rmse'
         self.currentLoadData = 'N/A'
         self.modelFile = os.path.join(self.modelLocation, self.modelName)
         self.param = self.initParam(modelType)
         self.modelLogs = list()
         self.modelResults = list()
+        self.trainSet = None
+        self.testSet = None
 
     @classmethod
     def initModel(cls, modelType, modelName, modelLocation):
@@ -77,7 +80,6 @@ class ml_model:
 
     def update(self):
         self.dumpModel(self.modelFile)
-        print('update')
 
     def initParam(self, modelType):
         param = {}
@@ -109,6 +111,26 @@ class ml_model:
         elif modelType == 'LINEAR':
             param['eta'] = 0
         return param
+
+    def setKFold(self, kFold):
+        self.kFold = kFold
+        self.update()
+
+    def setMetric(self, metric):
+        self.metric = metric
+        self.update()
+
+    def setModelType(self, type):
+        self.modelType = type
+        self.update()
+
+    def setTrainSet(self, trainSet):
+        self.trainSet = trainSet
+        self.update()
+
+    def setTestSet(self, testSet):
+        self.testSet = testSet
+        self.update()
 
 
 class xgbModel:

@@ -236,7 +236,7 @@ class MainFrame(QMainWindow):
                 mw.triggered.connect(self.addModelTab)
                 self.startTabLayout.addWidget(mw)
 
-    def addModelTab(self, MLModel:ml_model):
+    def addModelTab(self, MLModel: ml_model):
         modelTab = ModelTabWidget(MLModel, self.MLProject, self)
         self.tabWindow.addTab(modelTab, MLModel.modelName)
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(modelTab))
@@ -271,7 +271,7 @@ class MainFrame(QMainWindow):
             scrollarea.setWidget(ipythonTab)
             self.tabList.append(ipythonTab)
         elif scriptFile.endswith('.py'):
-            #self.tabList.append()
+            # self.tabList.append()
             pass
             # scrollarea.setWidget(ScriptTabWidget(scriptFile))
         scrollarea.setVerticalScrollBar(scrollbar)
@@ -409,7 +409,7 @@ class createModelDialog(QDialog):
     def __init__(self, MLProject: ml_project):
         super(createModelDialog, self).__init__()
         self.setWindowIcon(QIcon('MLTool.ico'))
-        self.modelTypeList = ['XGB', 'LGBM', 'LINEAR']
+        self.modelTypeList = ['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet']
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setFixedSize(600, 400)
         self.dialogLayout = QVBoxLayout(self)
@@ -487,7 +487,6 @@ class createModelDialog(QDialog):
                                                                       self.MLProject.modelDir),
                                                          options=options)
         self.modelLocationEdit.setText(os.path.abspath(os.path.join(self.MLProject.projectDir, self.modelName)))
-
 
 
 class CreateProjectDialog(QDialog):
