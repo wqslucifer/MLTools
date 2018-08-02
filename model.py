@@ -7,6 +7,7 @@ import os
 import gc
 import sys
 import json
+import time
 import pickle
 import pandas as pd
 from PyQt5.QtWidgets import QWidget, QDialog, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, \
@@ -18,7 +19,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
 from SwitchButton import switchButton
 
-from multiprocessing import Process
+from multiprocessing import Process, current_process, Queue, JoinableQueue
 import xgboost as xgb
 from sklearn.model_selection import KFold
 from sklearn.metrics import *
@@ -173,12 +174,12 @@ class ml_model:
 
 
 class xgbModel(Process):
-    def __init__(self, MLModel: ml_model, num_rounds=1000, kFold=5):
+    def __init__(self, queue, MLModel: ml_model, num_rounds=1000, kFold=5):
         super(xgbModel, self).__init__()
         self.X = None
         self.y = None
         self.test = None
-        self.features = ['MSSubClass','LotFrontage']
+        self.features = ['MSSubClass', 'LotFrontage']
         self.kFold = kFold
         self.param = MLModel.param
         self.num_rounds = num_rounds
@@ -189,6 +190,7 @@ class xgbModel(Process):
         self.ID = None
         self.target = None
         self.prepareData()
+        self.queue = queue
 
     def prepareData(self):
         self.ID = self.MLModel.ID
@@ -209,11 +211,15 @@ class xgbModel(Process):
         self.cvPredict = pd.DataFrame(index=self.X.index, columns=[self.ID, self.target])
         self.cvPredict[self.ID] = self.X[self.ID]
 
-        self.X = self.X.loc[:,self.features].values
+        self.X = self.X.loc[:, self.features].values
         self.y = self.y.values
-        self.test = self.test.loc[:,self.features].values
+        self.test = self.test.loc[:, self.features].values
 
     def train(self):
+        sys.excepthook = sys._excepthook
+        sys.stdout = EmitStream(textWritten=self.writeToQueue)
+        #sys.stderr = EmitStream(textWritten=self.writeToQueue)
+
         kf = KFold(self.kFold, shuffle=True, random_state=self.random_state)
         for n_fold, (trainIndex, cvIndex) in enumerate(kf.split(self.X)):
             train_X, train_y = self.X[trainIndex], self.y[trainIndex]
@@ -225,12 +231,16 @@ class xgbModel(Process):
             del train_X, train_y, cv_X, cv_y
             gc.collect()
             evallist = [(trainset, 'train'), (cvset, 'cv')]
+            print('fitting')
             model = xgb.train(self.param, dtrain=trainset, num_boost_round=self.num_rounds, evals=evallist,
                               early_stopping_rounds=100)
             self.cvPredict.iloc[cvIndex, 1] = model.predict(cv_train)
             self.modelList.append(model)
 
+        #sys.stdout = sys.__stdout__
+        #sys.stderr = sys.__stderr__
         return self.getScore(self.y, self.cvPredict.iloc[:, 1])
+
 
     def getScore(self, y_true, y_pred):
         if self.MLModel.metric == 'rmse':
@@ -243,6 +253,7 @@ class xgbModel(Process):
             r = precision_score(y_true, y_pred)
         return r
 
+
     def predict(self):
         testPredict = pd.DataFrame(index=self.test.index, columns=[self.ID, self.target])
         testPredict[self.ID] = self.test[self.ID]
@@ -250,6 +261,7 @@ class xgbModel(Process):
         for model in self.modelList:
             testPredict.iloc[:, 1] += model.predict(xgb.DMatrix(self.test)) / self.kFold
         return testPredict
+
 
     def predictProb(self):
         testPredict = pd.DataFrame(index=self.test.index, columns=[self.ID, self.target])
@@ -259,9 +271,23 @@ class xgbModel(Process):
             testPredict.iloc[:, 1] += model.predict_proba(xgb.DMatrix(self.test)) / self.kFold
         return testPredict
 
+
     def setParam(self):
         pass
+
 
     def run(self):
         print('Run child process (%s)' % os.getpid())
         self.train()
+
+    def writeToQueue(self, text):
+        self.queue.put(text)
+
+
+class EmitStream(QtCore.QObject):
+    textWritten = QtCore.pyqtSignal(str)
+    def write(self, text):
+        self.textWritten.emit(str(text))
+
+    def flush(self):
+        pass

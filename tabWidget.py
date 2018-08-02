@@ -4,8 +4,8 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
     QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
-    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel
+    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread,QObject
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget
 
@@ -16,8 +16,9 @@ import subprocess
 import logging
 import threading
 import gc
+import time
 import datetime
-import multiprocessing
+from multiprocessing import Queue
 
 from model import xgbModel
 
@@ -437,6 +438,7 @@ class ModelTabWidget(QWidget):
         self.initModelInfo()
         self.initXGBParam()
         self.initData()
+        self.infoQueue = Queue(10)
 
     def initUI(self):
         self.setLayout(self.outLayout)
@@ -649,8 +651,11 @@ class ModelTabWidget(QWidget):
         loadDataButton.clicked.connect(lambda: self.data_ID.setEnabled(True))
         loadDataButton.clicked.connect(lambda: self.data_target.setEnabled(True))
         loadDataButton.clicked.connect(lambda: self.loadData())
-        self.data_ID.currentTextChanged.connect(lambda :self.MLModel.setID(self.data_ID.currentText()))
-        self.data_target.currentTextChanged.connect(lambda :self.MLModel.setTarget(self.data_target.currentText()))
+        self.data_ID.currentTextChanged.connect(lambda: self.MLModel.setID(self.data_ID.currentText()))
+        self.data_target.currentTextChanged.connect(lambda: self.MLModel.setTarget(self.data_target.currentText()))
+
+        self.outputEditor = QTextEdit(self)
+        self.modelDataLayout.addRow('', self.outputEditor)
 
     def loadData(self):
         # load train set
@@ -677,15 +682,21 @@ class ModelTabWidget(QWidget):
     def runModel(self):
         model = None
         if self.MLModel.modelType == 'XGB':
-            model = xgbModel(self.MLModel, 2000, kFold=5)
-        #self.MLModel.setCurrentModel(model)
+            model = xgbModel(self.infoQueue, self.MLModel, 2000, kFold=5)
+        # self.MLModel.setCurrentModel(model)
         # create process to run model
         model.start()
-        #p = multiprocessing.Process(target=model.train())
-        #p.start()
+
+        self.my_receiver = MyReceiver(self.infoQueue, model)
+        self.my_receiver.mysignal.connect(self.append_text)
+        self.my_receiver.start()
 
     def stopModel(self):
         pass
+
+    def append_text(self, text):
+        self.outputEditor.moveCursor(QTextCursor.End)
+        self.outputEditor.insertPlainText(text)
 
 
 class testDialog(QDialog):
@@ -699,6 +710,23 @@ class testDialog(QDialog):
         self.item.setModel(self.model)
         self.model.loadCSV(pd.DataFrame([[1, 2], [2, 3], [3, 4]], columns=['id', 'value']))
         self.mainLayout.addWidget(self.item, 0, 0)
+
+
+class MyReceiver(QThread):
+    mysignal = pyqtSignal(str)
+    def __init__(self, queue, model):
+        super(MyReceiver, self).__init__()
+        self.queue = queue
+        self.model = model
+
+    def run(self):
+        while self.model.is_alive():
+            while not self.queue.empty():
+                text = self.queue.get()
+                self.mysignal.emit(text)
+        print('process end')
+
+
 
 
 if __name__ == '__main__':

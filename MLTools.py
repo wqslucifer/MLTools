@@ -18,11 +18,10 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from SwitchButton import switchButton
 from model import ml_model
 from project import ml_project
-
+from multiprocessing import Queue
 
 class MainFrame(QMainWindow):
     subprocessEnd = pyqtSignal()
-
     def __init__(self, parent=None):
         super(MainFrame, self).__init__(parent)
         self.ui = loadUi('MainFrame.ui', self)
