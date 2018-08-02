@@ -4,8 +4,10 @@ create model based on model type
 '''
 
 import os
+import gc
 import sys
 import json
+import pickle
 import pandas as pd
 from PyQt5.QtWidgets import QWidget, QDialog, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, \
     QApplication, QDockWidget, QLabel, QAction, QToolButton, QScrollArea, QScrollBar, QTabWidget, QFrame
@@ -16,8 +18,15 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from project import ml_project
 from SwitchButton import switchButton
 
+from multiprocessing import Process
+import xgboost as xgb
+from sklearn.model_selection import KFold
+from sklearn.metrics import *
+
 
 class ml_model:
+    modelUpdated = pyqtSignal()
+
     def __init__(self, modelType, modelName, modelLocation):
         self.modelType = modelType
         self.modelName = modelName
@@ -28,13 +37,16 @@ class ml_model:
         self.LBScore = 0
         self.kFold = 5
         self.metric = 'rmse'
-        self.currentLoadData = 'N/A'
         self.modelFile = os.path.join(self.modelLocation, self.modelName)
+        self.modelPickle = self.modelFile + '.pkl'
         self.param = self.initParam(modelType)
         self.modelLogs = list()
         self.modelResults = list()
-        self.trainSet = None
-        self.testSet = None
+        self.trainSet = ''
+        self.testSet = ''
+        self.ID = ''
+        self.target = ''
+        self.model = None
 
     @classmethod
     def initModel(cls, modelType, modelName, modelLocation):
@@ -56,7 +68,12 @@ class ml_model:
             newModel.localScore = modelDict['localScore']
             newModel.LBScore = modelDict['LBScore']
             newModel.metric = modelDict['metric']
-            newModel.currentLoadData = modelDict['currentLoadData']
+            newModel.trainSet = modelDict['trainSet']
+            newModel.testSet = modelDict['testSet']
+            newModel.ID = modelDict['ID']
+            newModel.target = modelDict['target']
+            newModel.kFold = modelDict['kFold']
+            newModel.modelPickle = modelDict['modelPickle']
             return newModel
 
     def dumpModel(self, modelFile=None):
@@ -72,7 +89,12 @@ class ml_model:
         modelDict['localScore'] = self.localScore
         modelDict['LBScore'] = self.LBScore
         modelDict['metric'] = self.metric
-        modelDict['currentLoadData'] = self.currentLoadData
+        modelDict['trainSet'] = self.trainSet
+        modelDict['testSet'] = self.testSet
+        modelDict['ID'] = self.ID
+        modelDict['target'] = self.target
+        modelDict['kFold'] = self.kFold
+        modelDict['modelPickle'] = self.modelPickle
         if modelFile:
             self.modelFile = os.path.join(self.modelLocation, modelFile)
         with open(self.modelFile, 'w') as f:
@@ -132,23 +154,114 @@ class ml_model:
         self.testSet = testSet
         self.update()
 
+    def setCurrentModel(self, model):
+        with open(self.modelPickle, 'wb') as f:
+            pickle.dump(model, f)
+        self.update()
 
-class xgbModel:
-    def __init__(self, param, train, test=None, kFold=5, metric='rmse'):
-        self.train = train
-        self.test = test
+    def loadCurrentModel(self):
+        with open(self.modelPickle, 'rb') as f:
+            self.model = pickle.load(f)
+
+    def setID(self, ID):
+        self.ID = ID
+        self.update()
+
+    def setTarget(self, target):
+        self.target = target
+        self.update()
+
+
+class xgbModel(Process):
+    def __init__(self, MLModel: ml_model, num_rounds=1000, kFold=5):
+        super(xgbModel, self).__init__()
+        self.X = None
+        self.y = None
+        self.test = None
+        self.features = ['MSSubClass','LotFrontage']
         self.kFold = kFold
-        self.metric = metric
-        self.param = param
+        self.param = MLModel.param
+        self.num_rounds = num_rounds
+        self.random_state = 0
+        self.modelList = []
+        self.cvPredict = None
+        self.MLModel = MLModel
+        self.ID = None
+        self.target = None
+        self.prepareData()
 
-    def fit(self):
-        pass
+    def prepareData(self):
+        self.ID = self.MLModel.ID
+        self.target = self.MLModel.target
+        # load train set
+        if self.MLModel.trainSet.endswith('csv'):
+            self.X = pd.read_csv(self.MLModel.trainSet)
+        elif self.MLModel.trainSet.endswith('pkl'):
+            self.X = pd.read_pickle(self.MLModel.trainSet)
+        # load test set
+        if self.MLModel.testSet.endswith('csv'):
+            self.test = pd.read_csv(self.MLModel.testSet)
+        elif self.MLModel.testSet.endswith('pkl'):
+            self.test = pd.read_pickle(self.MLModel.testSet)
+        # set y
+        self.y = self.X[self.target]
+        # init cv prediction dataframe
+        self.cvPredict = pd.DataFrame(index=self.X.index, columns=[self.ID, self.target])
+        self.cvPredict[self.ID] = self.X[self.ID]
+
+        self.X = self.X.loc[:,self.features].values
+        self.y = self.y.values
+        self.test = self.test.loc[:,self.features].values
+
+    def train(self):
+        kf = KFold(self.kFold, shuffle=True, random_state=self.random_state)
+        for n_fold, (trainIndex, cvIndex) in enumerate(kf.split(self.X)):
+            train_X, train_y = self.X[trainIndex], self.y[trainIndex]
+            cv_X, cv_y = self.X[cvIndex], self.y[cvIndex]
+            trainset = xgb.DMatrix(train_X, train_y)
+            cv_train = xgb.DMatrix(cv_X)
+            cvset = xgb.DMatrix(cv_X, cv_y)
+
+            del train_X, train_y, cv_X, cv_y
+            gc.collect()
+            evallist = [(trainset, 'train'), (cvset, 'cv')]
+            model = xgb.train(self.param, dtrain=trainset, num_boost_round=self.num_rounds, evals=evallist,
+                              early_stopping_rounds=100)
+            self.cvPredict.iloc[cvIndex, 1] = model.predict(cv_train)
+            self.modelList.append(model)
+
+        return self.getScore(self.y, self.cvPredict.iloc[:, 1])
+
+    def getScore(self, y_true, y_pred):
+        if self.MLModel.metric == 'rmse':
+            r = mean_squared_error(y_true, y_pred)
+        elif self.MLModel.metric == 'auc':
+            r = roc_auc_score(y_true, y_pred)
+        elif self.MLModel.metric == 'logloss':
+            r = log_loss(y_true, y_pred)
+        elif self.MLModel.metric == 'error':
+            r = precision_score(y_true, y_pred)
+        return r
 
     def predict(self):
-        pass
+        testPredict = pd.DataFrame(index=self.test.index, columns=[self.ID, self.target])
+        testPredict[self.ID] = self.test[self.ID]
+        testPredict[self.target] = [0 for _ in range(self.test.shape[0])]
+        for model in self.modelList:
+            testPredict.iloc[:, 1] += model.predict(xgb.DMatrix(self.test)) / self.kFold
+        return testPredict
 
     def predictProb(self):
-        pass
+        testPredict = pd.DataFrame(index=self.test.index, columns=[self.ID, self.target])
+        testPredict[self.ID] = self.test[self.ID]
+        testPredict[self.target] = [0 for _ in range(self.test.shape[0])]
+        for model in self.modelList:
+            testPredict.iloc[:, 1] += model.predict_proba(xgb.DMatrix(self.test)) / self.kFold
+        return testPredict
 
     def setParam(self):
         pass
+
+    def run(self):
+        print('Run child process (%s)' % os.getpid())
+        self.train()

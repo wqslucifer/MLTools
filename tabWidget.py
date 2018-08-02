@@ -17,6 +17,7 @@ import logging
 import threading
 import gc
 import datetime
+import multiprocessing
 
 from model import xgbModel
 
@@ -417,7 +418,7 @@ class ModelTabWidget(QWidget):
         self.modelDataLayout = QFormLayout(self)
         # local
         self.metric = QComboBox(self)
-        self.xgb_metric = ['rmse', 'auc', 'logloss', 'error', 'error@t', 'merror', 'mlogloss', 'ndcg']
+        self.xgb_metric = ['rmse', 'auc', 'logloss', 'error']
         self.lightGBM_metric = ['', 'mean_absolute_error', 'mean_squared_error', 'root_mean_squared_error', 'quantile',
                                 'None', 'auc', 'mean_average_precision', 'binary_logloss', 'binary_error',
                                 'mean_absolute_percentage_error']
@@ -484,10 +485,13 @@ class ModelTabWidget(QWidget):
         self.modelParam.setTitle('Param')
         self.modelData.setTitle('Data')
 
+        self.runButton.clicked.connect(self.runModel)
+
     def initModelInfo(self):
         self.modelInfoLayout.setContentsMargins(15, 20, 15, 10)
         algorithm = QComboBox(self)
-        algorithm.addItems(['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet'])
+        algorithm.addItems(
+            ['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet'])  # G setting
         algorithm.currentTextChanged.connect(lambda: self.setMetricSet(self.metric_map[algorithm.currentText()]))
         algorithm.currentTextChanged.connect(lambda: self.MLModel.setModelType(algorithm.currentText()))
         self.modelInfoLayout.addRow('Algorithm: ', algorithm)
@@ -615,18 +619,48 @@ class ModelTabWidget(QWidget):
 
     def initData(self):
         self.modelDataLayout.setContentsMargins(10, 20, 10, 10)
-
         trainSet = QComboBox(self)
         trainSet.addItems(self.MLProject.dataFiles_pkl)
         trainSet.addItems(self.MLProject.dataFiles_csv)
-        self.modelDataLayout.addRow('train Set: ', trainSet)
+        self.modelDataLayout.addRow('Train: ', trainSet)
+        trainSet.setCurrentText(os.path.basename(self.MLModel.trainSet))
         trainSet.currentTextChanged.connect(lambda: self.MLModel.setTrainSet(trainSet.currentText()))
 
         testSet = QComboBox(self)
         testSet.addItems(self.MLProject.dataFiles_pkl)
         testSet.addItems(self.MLProject.dataFiles_csv)
-        self.modelDataLayout.addRow('test Set: ', testSet)
+        self.modelDataLayout.addRow('Test: ', testSet)
+        testSet.setCurrentText(os.path.basename(self.MLModel.testSet))
         testSet.currentTextChanged.connect(lambda: self.MLModel.setTestSet(testSet.currentText()))
+        # load data button
+        loadDataButton = QPushButton('Load data', self)
+        self.modelDataLayout.addRow(loadDataButton)
+        # data ID
+        self.data_ID = QComboBox(self)
+        self.data_ID.setEditable(True)
+        self.data_ID.setEnabled(False)
+        self.modelDataLayout.addRow('ID:', self.data_ID)
+        # data target
+        self.data_target = QComboBox(self)
+        self.data_target.setEditable(True)
+        self.data_target.setEnabled(False)
+        self.modelDataLayout.addRow('Target:', self.data_target)
+
+        loadDataButton.clicked.connect(lambda: self.data_ID.setEnabled(True))
+        loadDataButton.clicked.connect(lambda: self.data_target.setEnabled(True))
+        loadDataButton.clicked.connect(lambda: self.loadData())
+        self.data_ID.currentTextChanged.connect(lambda :self.MLModel.setID(self.data_ID.currentText()))
+        self.data_target.currentTextChanged.connect(lambda :self.MLModel.setTarget(self.data_target.currentText()))
+
+    def loadData(self):
+        # load train set
+        if self.MLModel.trainSet.endswith('csv'):
+            train = pd.read_csv(self.MLModel.trainSet)
+        elif self.MLModel.trainSet.endswith('pkl'):
+            train = pd.read_pickle(self.MLModel.trainSet)
+        # set train list
+        self.data_ID.addItems(train.columns.tolist())
+        self.data_target.addItems(train.columns.tolist())
 
     def setParam(self, key, value):
         self.MLModel.param[key] = value
@@ -639,6 +673,19 @@ class ModelTabWidget(QWidget):
             self.metric.addItems(metrics)
         else:
             self.metric.addItems(self.sklearn_regression_metric + self.sklearn_classification_metric)
+
+    def runModel(self):
+        model = None
+        if self.MLModel.modelType == 'XGB':
+            model = xgbModel(self.MLModel, 2000, kFold=5)
+        #self.MLModel.setCurrentModel(model)
+        # create process to run model
+        model.start()
+        #p = multiprocessing.Process(target=model.train())
+        #p.start()
+
+    def stopModel(self):
+        pass
 
 
 class testDialog(QDialog):

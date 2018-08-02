@@ -35,10 +35,9 @@ class ModelWidget(QWidget):
         self.evalMetric = self.MLModel.metric
         self.evalScore = self.MLModel.localScore
         # data set
-        self.dataSetLabel = QLabel(os.path.basename(self.MLModel.currentLoadData),self) \
-            if self.MLModel.currentLoadData else QLabel('N/A',self)
-        self.dataSetLabel.setFont(QFont("Arial", 10, QFont.Bold))
-        # self.dataSetLabel.setToolTip()
+        self.trainSet = QLabel('trainSet: ' + self.MLModel.trainSet, self)
+        self.testSet = QLabel('testSet: ' + self.MLModel.testSet, self)
+
         # LB eval score
         self.leaderBoardLabel = QLabel("LB: ")
         self.LBScore = QLabel(str(self.MLModel.LBScore), self)
@@ -59,12 +58,13 @@ class ModelWidget(QWidget):
         LBLayout.setSpacing(16)
         self.mainLayout.addLayout(LBLayout, 3, 0)
         # data set label
-        self.mainLayout.addWidget(self.dataSetLabel, 4, 0)
+        self.mainLayout.addWidget(self.trainSet, 4, 0)
+        self.mainLayout.addWidget(self.testSet, 5, 0)
         # describe label
-        self.mainLayout.addWidget(self.modelDescribeLabel, 5, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.modelDescribeLabel, 6, 0, Qt.AlignTop)
 
         self.mainLayout.setRowStretch(0, 1)
-        self.mainLayout.setRowStretch(6, 20)
+        self.mainLayout.setRowStretch(7, 20)
         self.bgColor = QColor('#FFA779')
         self.edge = QRectF(5, 5, 170, 170)
         # bg translucent
