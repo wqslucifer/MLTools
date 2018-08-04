@@ -171,6 +171,7 @@ class MainFrame(QMainWindow):
         dialog.exec_()
         self.MLProject = dialog.MLProject
         self.openProject(self.MLProject.projectFile)
+        self.updateProjectTab()
 
     def initTabAndExplorer(self):
         # create scroll area
@@ -219,6 +220,10 @@ class MainFrame(QMainWindow):
         if self.MLProject.dataFiles_csv:
             for d in self.MLProject.dataFiles_csv:
                 dw = DataWidget('csv', d, self)
+                dw.triggered.connect(self.addDataTab)
+                self.startTabLayout.addWidget(dw)
+            for d in self.MLProject.dataFiles_pkl:
+                dw = DataWidget('pkl', d, self)
                 dw.triggered.connect(self.addDataTab)
                 self.startTabLayout.addWidget(dw)
         if self.MLProject.scriptFiles:
@@ -402,6 +407,14 @@ class MainFrame(QMainWindow):
             self.tabWindow.addTab(c, dialog.modelName)
             self.tabWindow.setCurrentIndex(len(self.tabList))
             self.tabList.append(c)
+            self.updateProjectTab()
+
+    def updateProjectTab(self):
+        if len(self.tabList):
+            self.tabWindow.removeTab(0)
+            del self.tabList[0]
+            #self.tabList.remove(self.tabList[0])
+            self.initProjectTab()
 
 
 class createModelDialog(QDialog):
@@ -670,7 +683,8 @@ class AddFileDialog(QDialog):
         dialog = QFileDialog()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        fileTypes = "CSV File (*.csv);;" \
+        fileTypes = "Data File (*.csv *.pkl);;"\
+                    "CSV File (*.csv);;" \
                     "Pickle File (*.pkl)"
         if os.path.exists(os.path.join(self.MLProject.projectDir, 'data')):
             dialog.setDirectory(os.path.join(self.MLProject.projectDir, 'data'))
@@ -748,25 +762,30 @@ class AddFileDialog(QDialog):
     def confirm(self):
         if self.dataFiles:
             for file in self.dataFiles:
-                if file.endswith('csv') and file not in self.MLProject.dataFiles_csv:
+                if file.endswith('csv') and os.path.abspath(file) not in self.MLProject.dataFiles_csv:
                     self.MLProject.dataFiles_csv.append(file)
-                elif file.endswith('pkl') and file not in self.MLProject.dataFiles_pkl:
+                elif file.endswith('pkl') and os.path.abspath(file) not in self.MLProject.dataFiles_pkl:
                     self.MLProject.dataFiles_pkl.append(file)
         if self.modelFiles:
             for file in self.modelFiles:
-                if file.endswith('md') and file not in self.MLProject.modelFiles:
+                if file.endswith('md') and os.path.abspath(file) not in self.MLProject.modelFiles:
                     self.MLProject.modelFiles.append(file)
         if self.scriptFiles:
-            for file in self.scriptFiles:
+            for file in self.scriptFiles and os.path.abspath(file) not in self.MLProject.scriptFiles:
                 if file not in self.MLProject.scriptFiles:
-                    self.MLProject.scriptFiles.append(file)
+                    self.MLProject.scriptFiles.append(os.path.abspath(file))
         if self.resultFiles:
-            for file in self.resultFiles:
+            for file in self.resultFiles and os.path.abspath(file) not in self.MLProject.resultFiles:
                 if file not in self.MLProject.resultFiles:
-                    self.MLProject.resultFiles.append(file)
+                    self.MLProject.resultFiles.append(os.path.abspath(file))
 
         self.done(QDialog.Accepted)
         self.MLProject.dumpProject(self.MLProject.projectFile)
+
+        #self.MLProject.dataFiles_csv = list(set(self.MLProject.dataFiles_csv))
+        #self.MLProject.dataFiles_pkl = list(set(self.MLProject.dataFiles_pkl))
+        #self.MLProject.modelFiles = list(set(self.MLProject.modelFiles))
+        #self.MLProject.scriptFiles = list(set(self.MLProject.scriptFiles))
 
     def cancel(self):
         self.done(QDialog.Rejected)

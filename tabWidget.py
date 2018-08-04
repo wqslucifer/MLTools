@@ -2,10 +2,11 @@ import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox
+    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
-    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread,QObject
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor
+    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
+    QCursor
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget
 
@@ -21,6 +22,9 @@ import datetime
 from multiprocessing import Queue
 
 from model import xgbModel
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -64,8 +68,8 @@ class DataTabWidget(QWidget):
         self.dataWindow = QWidget(self)
         self.dataWindowLayout = QVBoxLayout(self)
         self.dataExplorer = QTableView(self)
-        self.model = customTableModel(self)
-        self.dataExplorer.setModel(self.model)
+        self.tableModel = customTableModel(self)
+        self.dataExplorer.setModel(self.tableModel)
         self.statistic = QTableWidget(self)
 
         self.mainTab = QTabWidget(self)
@@ -74,6 +78,24 @@ class DataTabWidget(QWidget):
         # init UI
         self.initUI()
         self.initStatistic()
+        # right click menu
+        self.dataExplorer.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.dataExplorer.customContextMenuRequested.connect(self.onDataExplorerRightClicked)
+        self.dataExplorerPopMenu = QMenu(self)
+
+    def plotColumn(self, point:QPoint):
+        index = self.dataExplorer.indexAt(point)
+        print(self.dataFrame.columns[index.column()], index.row())
+        # add plot tab to
+        self.fig = Figure()
+        self.ax1 = self.fig.add_subplot(121)
+        self.ax2 = self.fig.add_subplot(122, sharex=self.ax1, sharey=self.ax1)
+        self.axes = [self.ax1, self.ax2]
+        self.canvas = FigureCanvas(self.fig)
+        self.mainTab.addTab(self.canvas, 'plot')
+        self.mainTab.setCurrentIndex(self.mainTab.count() - 1)
+        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.canvas.updateGeometry()
 
     def initUI(self):
         self.highLightSetting()
@@ -143,17 +165,20 @@ class DataTabWidget(QWidget):
 
     def initDataExplorer(self, filename):
         # load data
-        self.dataFrame = pd.read_csv(filename)
+        if filename.endswith('csv'):
+            self.dataFrame = pd.read_csv(filename)
+        elif filename.endswith('pkl'):
+            self.dataFrame = pd.read_pickle(filename)
         # init table
         self.dataExplorer.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.dataExplorer.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
-        self.model.loadCSV(self.dataFrame)
+        self.tableModel.loadCSV(self.dataFrame)
 
     def initStatistic(self):
         rowCount = 0
         self.statistic.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
         self.statistic.setColumnCount(self.dataFrame.shape[1])
-        self.statistic.setHorizontalHeaderLabels(self.dataFrame.columns.tolist())
+        self.statistic.setHorizontalHeaderLabels([str(i) for i in self.dataFrame.columns.tolist()])
         # Type
         self.statistic.insertRow(rowCount)
         for i, c in enumerate(self.dataFrame.columns):
@@ -249,6 +274,16 @@ class DataTabWidget(QWidget):
         else:
             return QWidget.eventFilter(target, event)
         # return
+
+    def onDataExplorerRightClicked(self, point: QPoint):
+        self.dataExplorerPopMenu.clear()
+        a1 = QAction('plot columns', self)
+        a1.triggered.connect(lambda :self.plotColumn(point))
+        dataExplorerActionList = [a1]
+        self.dataExplorerPopMenu.addActions(dataExplorerActionList)
+
+        # pop menu
+        self.dataExplorerPopMenu.exec(QCursor.pos())
 
 
 class customTableModel(QAbstractTableModel):
@@ -714,6 +749,7 @@ class testDialog(QDialog):
 
 class MyReceiver(QThread):
     mysignal = pyqtSignal(str)
+
     def __init__(self, queue, model):
         super(MyReceiver, self).__init__()
         self.queue = queue
@@ -726,6 +762,14 @@ class MyReceiver(QThread):
                 self.mysignal.emit(text)
         print('process end')
 
+class customAction(QAction):
+    myClicked = pyqtSignal(QPoint)
+    def __init__(self, point:QPoint):
+        super(customAction, self).__init__()
+        self.point = point
+
+    def clicked(self):
+        self.myClicked.emit(self.point)
 
 
 
