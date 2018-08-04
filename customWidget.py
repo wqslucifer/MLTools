@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
     QScrollBar, QScrollArea, QTextEdit
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon,QMouseEvent
 from model import ml_model
 
 
@@ -90,13 +90,16 @@ class ModelWidget(QWidget):
     def leaveEvent(self, QEvent):
         self.updateBgColor(QColor('#FFA779'))
 
-    def mousePressEvent(self, QMouseEvent):
+    def mousePressEvent(self, MouseEvent):
         self.updateBgColor(QColor('#C25015'))
 
-    def mouseReleaseEvent(self, QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
         self.updateBgColor(QColor('#FF6A1D'))
         print("Model tab")
-        self.triggered.emit(self.MLModel)
+        if MouseEvent.button() == Qt.RightButton:
+            print('right click menu')
+        elif MouseEvent.button() == Qt.LeftButton:
+            self.triggered.emit(self.MLModel)
 
     def setModel(self, ModelType, Describe=None):
         if isinstance(ModelType, str):
@@ -202,12 +205,15 @@ class DataWidget(QWidget):
     def leaveEvent(self, QEvent):
         self.updateBgColor(self.normColor)
 
-    def mousePressEvent(self, QMouseEvent):
+    def mousePressEvent(self, MouseEvent:QMouseEvent):
         self.updateBgColor(self.pressColor)
 
-    def mouseReleaseEvent(self, QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
         self.updateBgColor(self.enterColor)
-        self.triggered.emit(self.fileName)
+        if MouseEvent.button() == Qt.RightButton:
+            print('right click menu')
+        elif MouseEvent.button() == Qt.LeftButton:
+            self.triggered.emit(self.fileName)
 
     def setColorSet(self, normColor, enterColor, pressColor):
         self.normColor = QColor(normColor)
@@ -290,12 +296,15 @@ class ScriptWidget(QWidget):
     def leaveEvent(self, QEvent):
         self.updateBgColor(self.normColor)
 
-    def mousePressEvent(self, QMouseEvent):
+    def mousePressEvent(self, MouseEvent:QMouseEvent):
         self.updateBgColor(self.pressColor)
 
-    def mouseReleaseEvent(self, QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
         self.updateBgColor(self.enterColor)
-        self.triggered.emit(self.fileName)
+        if MouseEvent.button() == Qt.RightButton:
+            print('right click menu')
+        elif MouseEvent.button() == Qt.LeftButton:
+            self.triggered.emit(self.fileName)
 
     def setColorSet(self, normColor, enterColor, pressColor):
         self.normColor = QColor(normColor)
@@ -373,9 +382,12 @@ class ProjectWidget(QWidget):
     def mousePressEvent(self, QMouseEvent):
         self.updateBgColor(self.pressColor)
 
-    def mouseReleaseEvent(self, QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
         self.updateBgColor(self.enterColor)
-        self.triggered.emit(self.projectFile)
+        if MouseEvent.button() == Qt.RightButton:
+            print('right click menu')
+        elif MouseEvent.button() == Qt.LeftButton:
+            self.triggered.emit(self.projectFile)
 
     def setColorSet(self, normColor, enterColor, pressColor):
         self.normColor = QColor(normColor)

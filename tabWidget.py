@@ -9,6 +9,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainte
     QCursor
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget
+from customLayout import FlowLayout
 
 from SwitchButton import switchButton
 import pandas as pd
@@ -24,7 +25,10 @@ from multiprocessing import Queue
 from model import xgbModel
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -82,20 +86,47 @@ class DataTabWidget(QWidget):
         self.dataExplorer.setContextMenuPolicy(Qt.CustomContextMenu)
         self.dataExplorer.customContextMenuRequested.connect(self.onDataExplorerRightClicked)
         self.dataExplorerPopMenu = QMenu(self)
+        # plot tab setting
+        scrollArea = QScrollArea(self)
+        scrollArea.setWidgetResizable(True)
+        self.plotLayout = FlowLayout()
+        plotWidget = QWidget(self)
+        plotWidget.setLayout(self.plotLayout)
+        scrollArea.setWidget(plotWidget)
+        self.mainTab.addTab(scrollArea, 'plot')
+        self.mainTab.updateGeometry()
 
     def plotColumn(self, point:QPoint):
+        layout = QVBoxLayout(self)
+
         index = self.dataExplorer.indexAt(point)
         print(self.dataFrame.columns[index.column()], index.row())
-        # add plot tab to
-        self.fig = Figure()
-        self.ax1 = self.fig.add_subplot(121)
-        self.ax2 = self.fig.add_subplot(122, sharex=self.ax1, sharey=self.ax1)
-        self.axes = [self.ax1, self.ax2]
-        self.canvas = FigureCanvas(self.fig)
-        self.mainTab.addTab(self.canvas, 'plot')
-        self.mainTab.setCurrentIndex(self.mainTab.count() - 1)
-        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.canvas.updateGeometry()
+        # create plot
+        fig = Figure(figsize=(5, 4))
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        sns.set(palette="muted", color_codes=True)
+        # plot data
+        sns.distplot(self.dataFrame.iloc[:,index.column()], kde=False, color="g", ax=ax)
+        # set title
+        ax.set_title(self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
 
     def initUI(self):
         self.highLightSetting()
@@ -284,6 +315,13 @@ class DataTabWidget(QWidget):
 
         # pop menu
         self.dataExplorerPopMenu.exec(QCursor.pos())
+
+
+class NavigationToolbar(NavigationToolbar2QT):
+    def __init__(self, *args, **kwargs):
+        self.toolitems = [t for t in NavigationToolbar2QT.toolitems if
+                     t[0] in ('Home', 'Pan', 'Zoom', 'Save')]
+        super(NavigationToolbar, self).__init__(*args, **kwargs)
 
 
 class customTableModel(QAbstractTableModel):
