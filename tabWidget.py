@@ -177,6 +177,146 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
+    def linePlot(self, point:QPoint):
+        """
+        display line of column
+        x: index y: value
+        :param point:QPoint
+        :return:None
+        """
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+        sortColumn = False
+        if sortColumn:
+            Y = self.dataFrame.iloc[:, index.column()].sort_values()
+            X = [i for i in range(Y.shape[0])]
+        else:
+            X = self.dataFrame.index.tolist()
+            Y = self.dataFrame.iloc[:, index.column()]
+        # create plot
+        fig = Figure(figsize=(5, 4))
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        #sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot data
+        sns.lineplot(x=X,y=Y.dropna(), ax=ax)
+        ax.set_xlabel('index')
+        ax.set_ylabel('value')
+        # set title
+        ax.set_title('line: '+self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
+    def countPlot(self, point:QPoint):
+        """
+        display number of each category in column
+        x: category y: count
+        :param point:QPoint
+        :return:None
+        """
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+
+        X = self.dataFrame.iloc[:, index.column()]
+        X = X.fillna('NAN')
+        # create plot
+        fig = Figure(figsize=(6, 5))
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        #sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot data
+        sns.countplot(x=X,ax=ax)
+        ax.set_xlabel(self.dataFrame.columns[index.column()])
+        ax.set_ylabel('count')
+        # set title
+        ax.set_title('count: '+self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
+    def nanPlot(self, point:QPoint):
+        """
+        display number of nan in column
+        x: column name y: nan or not count
+        :param point:QPoint
+        :return:None
+        """
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+
+        meta = self.dataFrame.isnull().any()
+        na_columns=meta[meta==True].index
+
+        X = na_columns
+        Y1 = np.sum(self.dataFrame[X].isnull())
+        Y2 = Y1*0 + self.dataFrame.shape[0]
+        # create plot
+        fig = Figure(figsize=(6, 6))
+        fig.tight_layout()
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        #sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot
+        sns.set_color_codes("pastel")
+        sns.barplot(x=Y2, y=X, ax=ax, color="b")
+        sns.set_color_codes("muted")
+        plot = sns.barplot(x=Y1, y=X, ax=ax, color="r")
+        labels = ax.get_xticks()
+        plot.set_xticklabels(labels, rotation=45)
+        labels = plot.get_yticklabels()
+        plot.set_yticklabels(labels, rotation=50)
+
+        ax.set_xlabel(self.dataFrame.columns[index.column()])
+        ax.set_ylabel('count')
+        # set title
+        ax.set_title('count: '+self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
     def initUI(self):
         self.highLightSetting()
         self.initToolDataInfo()
@@ -370,10 +510,11 @@ class DataTabWidget(QWidget):
         a1.triggered.connect(lambda: self.scatterPlot(point))
         a2 = QAction('distribute plot', self)
         a2.triggered.connect(lambda: self.distPlot(point))
+        a3 = QAction('line plot', self)
+        a3.triggered.connect(lambda: self.linePlot(point))
 
-        dataExplorerActionList = [a1, a2]
+        dataExplorerActionList = [a1, a2, a3]
         self.dataExplorerPopMenu.addActions(dataExplorerActionList)
-
 
         self.dataExplorerPopMenu.addSeparator()
         label = QLabel('CATEGORY', self)
@@ -383,9 +524,12 @@ class DataTabWidget(QWidget):
         self.dataExplorerPopMenu.addAction(b)
         self.dataExplorerPopMenu.addSeparator()
         # category
-        self.dataExplorerPopMenu.addAction('test')
+        b1 = QAction('count plot', self)
+        b1.triggered.connect(lambda: self.countPlot(point))
+        b2 = QAction('test plot', self)
+        b2.triggered.connect(lambda: self.nanPlot(point))
 
-        dataExplorerActionList = []
+        dataExplorerActionList = [b1, b2]
         self.dataExplorerPopMenu.addActions(dataExplorerActionList)
 
         # pop menu
