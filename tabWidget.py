@@ -2,7 +2,7 @@ import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction
+    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction,QWidgetAction
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
@@ -96,21 +96,31 @@ class DataTabWidget(QWidget):
         self.mainTab.addTab(scrollArea, 'plot')
         self.mainTab.updateGeometry()
 
-    def plotColumn(self, point:QPoint):
+    def scatterPlot(self, point: QPoint):
+        """
+        display scatter of column, show distribution by index  x: index y: dataFrame column
+        :param point:QPoint
+        :return:None
+        """
         layout = QVBoxLayout(self)
-
         index = self.dataExplorer.indexAt(point)
-        print(self.dataFrame.columns[index.column()], index.row())
+
+        X = self.dataFrame.index.tolist()
+        Y = self.dataFrame.iloc[:, index.column()]
         # create plot
         fig = Figure(figsize=(5, 4))
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
         # set color
-        sns.set(palette="muted", color_codes=True)
+        #sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
         # plot data
-        sns.distplot(self.dataFrame.iloc[:,index.column()], kde=False, color="g", ax=ax)
+        sns.scatterplot(x=X, y=Y, palette="ch:r=-.2,d=.3_r",
+                        size=Y, sizes=(2,5), linewidth=0, ax=ax, legend=False)
+        ax.set_xlabel('index')
+        ax.set_ylabel('value')
         # set title
-        ax.set_title(self.dataFrame.columns[index.column()])
+        ax.set_title('scatter: '+self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -127,6 +137,45 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
+    def distPlot(self, point:QPoint):
+        """
+        display scatter of column, show distribution histogram of this column
+        x: value of column y: hist
+        :param point:QPoint
+        :return:None
+        """
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+
+        X = self.dataFrame.iloc[:, index.column()]
+        # create plot
+        fig = Figure(figsize=(5, 4))
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        #sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot data
+        sns.distplot(a=X.dropna(),bins=30,hist=True,norm_hist=True, kde=True, rug=True, ax=ax)
+        ax.set_xlabel('value')
+        ax.set_ylabel('hist')
+        # set title
+        ax.set_title('distribution: '+self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
 
     def initUI(self):
         self.highLightSetting()
@@ -308,9 +357,35 @@ class DataTabWidget(QWidget):
 
     def onDataExplorerRightClicked(self, point: QPoint):
         self.dataExplorerPopMenu.clear()
-        a1 = QAction('plot columns', self)
-        a1.triggered.connect(lambda :self.plotColumn(point))
-        dataExplorerActionList = [a1]
+
+        label = QLabel('NUMERIC', self)
+        label.setAlignment(Qt.AlignCenter)
+        a = QWidgetAction(self.dataExplorerPopMenu)
+        a.setDefaultWidget(label)
+        self.dataExplorerPopMenu.addAction(a)
+        self.dataExplorerPopMenu.addSeparator()
+
+        # numeric
+        a1 = QAction('scatter plot', self)
+        a1.triggered.connect(lambda: self.scatterPlot(point))
+        a2 = QAction('distribute plot', self)
+        a2.triggered.connect(lambda: self.distPlot(point))
+
+        dataExplorerActionList = [a1, a2]
+        self.dataExplorerPopMenu.addActions(dataExplorerActionList)
+
+
+        self.dataExplorerPopMenu.addSeparator()
+        label = QLabel('CATEGORY', self)
+        label.setAlignment(Qt.AlignCenter)
+        b = QWidgetAction(self.dataExplorerPopMenu)
+        b.setDefaultWidget(label)
+        self.dataExplorerPopMenu.addAction(b)
+        self.dataExplorerPopMenu.addSeparator()
+        # category
+        self.dataExplorerPopMenu.addAction('test')
+
+        dataExplorerActionList = []
         self.dataExplorerPopMenu.addActions(dataExplorerActionList)
 
         # pop menu
@@ -320,7 +395,7 @@ class DataTabWidget(QWidget):
 class NavigationToolbar(NavigationToolbar2QT):
     def __init__(self, *args, **kwargs):
         self.toolitems = [t for t in NavigationToolbar2QT.toolitems if
-                     t[0] in ('Home', 'Pan', 'Zoom', 'Save')]
+                          t[0] in ('Home', 'Pan', 'Zoom', 'Save')]
         super(NavigationToolbar, self).__init__(*args, **kwargs)
 
 
@@ -800,15 +875,16 @@ class MyReceiver(QThread):
                 self.mysignal.emit(text)
         print('process end')
 
+
 class customAction(QAction):
     myClicked = pyqtSignal(QPoint)
-    def __init__(self, point:QPoint):
+
+    def __init__(self, point: QPoint):
         super(customAction, self).__init__()
         self.point = point
 
     def clicked(self):
         self.myClicked.emit(self.point)
-
 
 
 if __name__ == '__main__':
