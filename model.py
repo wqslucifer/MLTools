@@ -241,7 +241,6 @@ class xgbModel(Process):
         #sys.stderr = sys.__stderr__
         return self.getScore(self.y, self.cvPredict.iloc[:, 1])
 
-
     def getScore(self, y_true, y_pred):
         if self.MLModel.metric == 'rmse':
             r = mean_squared_error(y_true, y_pred)
@@ -253,7 +252,6 @@ class xgbModel(Process):
             r = precision_score(y_true, y_pred)
         return r
 
-
     def predict(self):
         testPredict = pd.DataFrame(index=self.test.index, columns=[self.ID, self.target])
         testPredict[self.ID] = self.test[self.ID]
@@ -261,7 +259,6 @@ class xgbModel(Process):
         for model in self.modelList:
             testPredict.iloc[:, 1] += model.predict(xgb.DMatrix(self.test)) / self.kFold
         return testPredict
-
 
     def predictProb(self):
         testPredict = pd.DataFrame(index=self.test.index, columns=[self.ID, self.target])
@@ -271,10 +268,8 @@ class xgbModel(Process):
             testPredict.iloc[:, 1] += model.predict_proba(xgb.DMatrix(self.test)) / self.kFold
         return testPredict
 
-
     def setParam(self):
         pass
-
 
     def run(self):
         print('Run child process (%s)' % os.getpid())

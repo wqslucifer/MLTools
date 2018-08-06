@@ -110,12 +110,12 @@ class DataTabWidget(QWidget):
             meta = self.dataFrame.iloc[:, index.column()].dropna().sort_values().reset_index(drop=True)
             meta_index = meta.index
             meta = pd.DataFrame([meta_index, meta]).transpose()
-            meta.columns = ['index','meta']
+            meta.columns = ['index', 'meta']
         else:
             meta = self.dataFrame.iloc[:, index.column()].dropna()
             meta_index = meta.index
             meta = pd.DataFrame([meta_index, meta]).transpose()
-            meta.columns = ['index','meta']
+            meta.columns = ['index', 'meta']
 
         # create plot
         fig = Figure(figsize=(5, 4))
@@ -390,7 +390,7 @@ class DataTabWidget(QWidget):
         # sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot data
-        sns.boxplot(x=X,ax=ax)
+        sns.boxplot(x=X, ax=ax)
         ax.set_xlabel(self.dataFrame.columns[index.column()])
         ax.set_ylabel('count')
         # set title
@@ -1037,12 +1037,11 @@ class ModelTabWidget(QWidget):
         self.data_target.setEnabled(False)
         self.modelDataLayout.addRow('Target:', self.data_target)
 
-        loadDataButton.clicked.connect(lambda: self.data_ID.setEnabled(True))
-        loadDataButton.clicked.connect(lambda: self.data_target.setEnabled(True))
         loadDataButton.clicked.connect(lambda: self.loadData())
         self.data_ID.currentTextChanged.connect(lambda: self.MLModel.setID(self.data_ID.currentText()))
         self.data_target.currentTextChanged.connect(lambda: self.MLModel.setTarget(self.data_target.currentText()))
-
+        loadDataButton.clicked.connect(lambda: self.data_ID.setEnabled(True))
+        loadDataButton.clicked.connect(lambda: self.data_target.setEnabled(True))
         self.outputEditor = QTextEdit(self)
         self.modelDataLayout.addRow('', self.outputEditor)
 
@@ -1053,8 +1052,12 @@ class ModelTabWidget(QWidget):
         elif self.MLModel.trainSet.endswith('pkl'):
             train = pd.read_pickle(self.MLModel.trainSet)
         # set train list
+        id = self.MLModel.ID
+        target = self.MLModel.target
         self.data_ID.addItems(train.columns.tolist())
         self.data_target.addItems(train.columns.tolist())
+        self.data_ID.setCurrentText(id)
+        self.data_target.setCurrentText(target)
 
     def setParam(self, key, value):
         self.MLModel.param[key] = value

@@ -399,7 +399,7 @@ class MainFrame(QMainWindow):
         if r == QDialog.Accepted:
             newModel = ml_model(dialog.modelType, dialog.modelName, dialog.modelLocation)
             self.MLModels.append(newModel)
-            newModel.dumpModel()
+            newModel.update()
             self.MLProject.modelFiles.append(newModel.modelFile)
             self.MLProject.dumpProject(self.MLProject.projectFile)
             # add tab and jump to it
