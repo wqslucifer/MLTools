@@ -272,13 +272,10 @@ class DataTabWidget(QWidget):
         """
         layout = QVBoxLayout(self)
         index = self.dataExplorer.indexAt(point)
-
         meta = self.dataFrame.isnull().any()
         na_columns=meta[meta==True].index
 
         X = na_columns
-        Y1 = np.sum(self.dataFrame[X].isnull())
-        Y2 = Y1*0 + self.dataFrame.shape[0]
         # create plot
         fig = Figure(figsize=(6, 6))
         fig.tight_layout()
@@ -288,19 +285,25 @@ class DataTabWidget(QWidget):
         #sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot
-        sns.set_color_codes("pastel")
-        sns.barplot(x=Y2, y=X, ax=ax, color="b")
-        sns.set_color_codes("muted")
-        plot = sns.barplot(x=Y1, y=X, ax=ax, color="r")
-        labels = ax.get_xticks()
-        plot.set_xticklabels(labels, rotation=45)
-        labels = plot.get_yticklabels()
-        plot.set_yticklabels(labels, rotation=50)
+        if len(X):
+            Y1 = np.sum(self.dataFrame[X].isnull())
+            Y2 = Y1*0 + self.dataFrame.shape[0]
+            sns.set_color_codes("pastel")
+            sns.barplot(x=Y2, y=X, ax=ax, color="b")
+            sns.set_color_codes("muted")
+            plot = sns.barplot(x=Y1, y=X, ax=ax, color="r")
+            labels = ax.get_xticks()
+            plot.set_xticklabels(labels, rotation=45)
+            labels = plot.get_yticklabels()
+            plot.set_yticklabels(labels, rotation=50)
 
-        ax.set_xlabel(self.dataFrame.columns[index.column()])
-        ax.set_ylabel('count')
+            sns.set_palette(sns.cubehelix_palette(8))
+            ax.axvline(self.dataFrame.shape[0]*0.8, color='#856798',clip_on=False)
+
+        ax.set_xlabel('count')
+        ax.set_ylabel(os.path.basename(self.filename))
         # set title
-        ax.set_title('count: '+self.dataFrame.columns[index.column()])
+        ax.set_title('count NA: '+ os.path.basename(self.filename))
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -316,6 +319,8 @@ class DataTabWidget(QWidget):
         self.plotLayout.addWidget(tmp)
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
+
+
 
     def initUI(self):
         self.highLightSetting()
@@ -497,15 +502,16 @@ class DataTabWidget(QWidget):
 
     def onDataExplorerRightClicked(self, point: QPoint):
         self.dataExplorerPopMenu.clear()
+        generalMenu = QMenu('General',self)
+        g1 = QAction('NA plot', self)
+        g1.triggered.connect(lambda: self.nanPlot(point))
 
-        label = QLabel('NUMERIC', self)
-        label.setAlignment(Qt.AlignCenter)
-        a = QWidgetAction(self.dataExplorerPopMenu)
-        a.setDefaultWidget(label)
-        self.dataExplorerPopMenu.addAction(a)
-        self.dataExplorerPopMenu.addSeparator()
+        dataExplorerActionList = [g1]
+        generalMenu.addActions(dataExplorerActionList)
+        self.dataExplorerPopMenu.addMenu(generalMenu)
 
         # numeric
+        numericMenu = QMenu('Numeric',self)
         a1 = QAction('scatter plot', self)
         a1.triggered.connect(lambda: self.scatterPlot(point))
         a2 = QAction('distribute plot', self)
@@ -514,24 +520,22 @@ class DataTabWidget(QWidget):
         a3.triggered.connect(lambda: self.linePlot(point))
 
         dataExplorerActionList = [a1, a2, a3]
-        self.dataExplorerPopMenu.addActions(dataExplorerActionList)
+        numericMenu.addActions(dataExplorerActionList)
+        self.dataExplorerPopMenu.addMenu(numericMenu)
 
-        self.dataExplorerPopMenu.addSeparator()
-        label = QLabel('CATEGORY', self)
-        label.setAlignment(Qt.AlignCenter)
-        b = QWidgetAction(self.dataExplorerPopMenu)
-        b.setDefaultWidget(label)
-        self.dataExplorerPopMenu.addAction(b)
-        self.dataExplorerPopMenu.addSeparator()
         # category
+        categoryMenu = QMenu('Category',self)
         b1 = QAction('count plot', self)
         b1.triggered.connect(lambda: self.countPlot(point))
-        b2 = QAction('test plot', self)
-        b2.triggered.connect(lambda: self.nanPlot(point))
 
-        dataExplorerActionList = [b1, b2]
-        self.dataExplorerPopMenu.addActions(dataExplorerActionList)
+        dataExplorerActionList = [b1]
+        categoryMenu.addActions(dataExplorerActionList)
+        self.dataExplorerPopMenu.addMenu(categoryMenu)
 
+        # test action
+        test = QAction('test plot', self)
+        test.triggered.connect(lambda: self.nanPlot(point))
+        self.dataExplorerPopMenu.addAction(test)
         # pop menu
         self.dataExplorerPopMenu.exec(QCursor.pos())
 
