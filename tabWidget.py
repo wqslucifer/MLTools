@@ -2,7 +2,7 @@ import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction,QWidgetAction
+    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
@@ -96,6 +96,58 @@ class DataTabWidget(QWidget):
         self.mainTab.addTab(scrollArea, 'plot')
         self.mainTab.updateGeometry()
 
+    def regressionPlot(self, point: QPoint):
+        """
+        display line of column
+        x: index y: value
+        :param point:QPoint
+        :return:None
+        """
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+        sortColumn = True
+        if sortColumn:
+            meta = self.dataFrame.iloc[:, index.column()].dropna().sort_values().reset_index(drop=True)
+            meta_index = meta.index
+            meta = pd.DataFrame([meta_index, meta]).transpose()
+            meta.columns = ['index','meta']
+        else:
+            meta = self.dataFrame.iloc[:, index.column()].dropna()
+            meta_index = meta.index
+            meta = pd.DataFrame([meta_index, meta]).transpose()
+            meta.columns = ['index','meta']
+
+        # create plot
+        fig = Figure(figsize=(5, 4))
+        fig.set_tight_layout(True)
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        # sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot data
+        sns.regplot(x='index', y='meta', data=meta, ax=ax)
+
+        ax.set_xlabel('index')
+        ax.set_ylabel('value')
+        # set title
+        ax.set_title('line: ' + self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
     def scatterPlot(self, point: QPoint):
         """
         display scatter of column, show distribution by index  x: index y: dataFrame column
@@ -109,18 +161,19 @@ class DataTabWidget(QWidget):
         Y = self.dataFrame.iloc[:, index.column()]
         # create plot
         fig = Figure(figsize=(5, 4))
+        fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
         # set color
-        #sns.set(palette="muted", color_codes=True)
+        # sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot data
         sns.scatterplot(x=X, y=Y, palette="ch:r=-.2,d=.3_r",
-                        size=Y, sizes=(2,5), linewidth=0, ax=ax, legend=False)
+                        size=Y, sizes=(2, 5), linewidth=0, ax=ax, legend=False)
         ax.set_xlabel('index')
         ax.set_ylabel('value')
         # set title
-        ax.set_title('scatter: '+self.dataFrame.columns[index.column()])
+        ax.set_title('scatter: ' + self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -137,7 +190,7 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
-    def distPlot(self, point:QPoint):
+    def distPlot(self, point: QPoint):
         """
         display scatter of column, show distribution histogram of this column
         x: value of column y: hist
@@ -150,17 +203,18 @@ class DataTabWidget(QWidget):
         X = self.dataFrame.iloc[:, index.column()]
         # create plot
         fig = Figure(figsize=(5, 4))
+        fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
         # set color
-        #sns.set(palette="muted", color_codes=True)
+        # sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot data
-        sns.distplot(a=X.dropna(),bins=30,hist=True,norm_hist=True, kde=True, rug=True, ax=ax)
+        sns.distplot(a=X.dropna(), bins=30, hist=True, norm_hist=True, kde=True, rug=True, ax=ax)
         ax.set_xlabel('value')
         ax.set_ylabel('hist')
         # set title
-        ax.set_title('distribution: '+self.dataFrame.columns[index.column()])
+        ax.set_title('distribution: ' + self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -177,7 +231,7 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
-    def linePlot(self, point:QPoint):
+    def linePlot(self, point: QPoint):
         """
         display line of column
         x: index y: value
@@ -195,17 +249,18 @@ class DataTabWidget(QWidget):
             Y = self.dataFrame.iloc[:, index.column()]
         # create plot
         fig = Figure(figsize=(5, 4))
+        fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
         # set color
-        #sns.set(palette="muted", color_codes=True)
+        # sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot data
-        sns.lineplot(x=X,y=Y.dropna(), ax=ax)
+        sns.lineplot(x=X, y=Y.dropna(), ax=ax)
         ax.set_xlabel('index')
         ax.set_ylabel('value')
         # set title
-        ax.set_title('line: '+self.dataFrame.columns[index.column()])
+        ax.set_title('line: ' + self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -222,7 +277,7 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
-    def countPlot(self, point:QPoint):
+    def countPlot(self, point: QPoint):
         """
         display number of each category in column
         x: category y: count
@@ -236,17 +291,18 @@ class DataTabWidget(QWidget):
         X = X.fillna('NAN')
         # create plot
         fig = Figure(figsize=(6, 5))
+        fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
         # set color
-        #sns.set(palette="muted", color_codes=True)
+        # sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot data
-        sns.countplot(x=X,ax=ax)
+        sns.countplot(x=X, ax=ax)
         ax.set_xlabel(self.dataFrame.columns[index.column()])
         ax.set_ylabel('count')
         # set title
-        ax.set_title('count: '+self.dataFrame.columns[index.column()])
+        ax.set_title('count: ' + self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -263,7 +319,7 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
-    def nanPlot(self, point:QPoint):
+    def nanPlot(self, point: QPoint):
         """
         display number of nan in column
         x: column name y: nan or not count
@@ -273,21 +329,21 @@ class DataTabWidget(QWidget):
         layout = QVBoxLayout(self)
         index = self.dataExplorer.indexAt(point)
         meta = self.dataFrame.isnull().any()
-        na_columns=meta[meta==True].index
+        na_columns = meta[meta == True].index
 
         X = na_columns
         # create plot
         fig = Figure(figsize=(6, 6))
-        fig.tight_layout()
+        fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
         # set color
-        #sns.set(palette="muted", color_codes=True)
+        # sns.set(palette="muted", color_codes=True)
         sns.set(style="whitegrid")
         # plot
         if len(X):
             Y1 = np.sum(self.dataFrame[X].isnull())
-            Y2 = Y1*0 + self.dataFrame.shape[0]
+            Y2 = Y1 * 0 + self.dataFrame.shape[0]
             sns.set_color_codes("pastel")
             sns.barplot(x=Y2, y=X, ax=ax, color="b")
             sns.set_color_codes("muted")
@@ -298,12 +354,12 @@ class DataTabWidget(QWidget):
             plot.set_yticklabels(labels, rotation=50)
 
             sns.set_palette(sns.cubehelix_palette(8))
-            ax.axvline(self.dataFrame.shape[0]*0.8, color='#856798',clip_on=False)
+            ax.axvline(self.dataFrame.shape[0] * 0.8, color='#856798', clip_on=False)
 
         ax.set_xlabel('count')
         ax.set_ylabel(os.path.basename(self.filename))
         # set title
-        ax.set_title('count NA: '+ os.path.basename(self.filename))
+        ax.set_title('count NA: ' + os.path.basename(self.filename))
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -319,8 +375,6 @@ class DataTabWidget(QWidget):
         self.plotLayout.addWidget(tmp)
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
-
-
 
     def initUI(self):
         self.highLightSetting()
@@ -502,7 +556,7 @@ class DataTabWidget(QWidget):
 
     def onDataExplorerRightClicked(self, point: QPoint):
         self.dataExplorerPopMenu.clear()
-        generalMenu = QMenu('General',self)
+        generalMenu = QMenu('General', self)
         g1 = QAction('NA plot', self)
         g1.triggered.connect(lambda: self.nanPlot(point))
 
@@ -511,20 +565,22 @@ class DataTabWidget(QWidget):
         self.dataExplorerPopMenu.addMenu(generalMenu)
 
         # numeric
-        numericMenu = QMenu('Numeric',self)
+        numericMenu = QMenu('Numeric', self)
         a1 = QAction('scatter plot', self)
         a1.triggered.connect(lambda: self.scatterPlot(point))
         a2 = QAction('distribute plot', self)
         a2.triggered.connect(lambda: self.distPlot(point))
         a3 = QAction('line plot', self)
         a3.triggered.connect(lambda: self.linePlot(point))
+        a4 = QAction('regression plot', self)
+        a4.triggered.connect(lambda: self.regressionPlot(point))
 
-        dataExplorerActionList = [a1, a2, a3]
+        dataExplorerActionList = [a1, a2, a3, a4]
         numericMenu.addActions(dataExplorerActionList)
         self.dataExplorerPopMenu.addMenu(numericMenu)
 
         # category
-        categoryMenu = QMenu('Category',self)
+        categoryMenu = QMenu('Category', self)
         b1 = QAction('count plot', self)
         b1.triggered.connect(lambda: self.countPlot(point))
 
