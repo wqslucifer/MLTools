@@ -131,7 +131,7 @@ class DataTabWidget(QWidget):
         ax.set_xlabel('index')
         ax.set_ylabel('value')
         # set title
-        ax.set_title('line: ' + self.dataFrame.columns[index.column()])
+        ax.set_title('regression: ' + self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -376,6 +376,41 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
+    def boxPlot(self, point: QPoint):
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+
+        X = self.dataFrame.iloc[:, index.column()]
+        # create plot
+        fig = Figure(figsize=(4, 4))
+        fig.set_tight_layout(True)
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        # sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot data
+        sns.boxplot(x=X,ax=ax)
+        ax.set_xlabel(self.dataFrame.columns[index.column()])
+        ax.set_ylabel('count')
+        # set title
+        ax.set_title('count: ' + self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
     def initUI(self):
         self.highLightSetting()
         self.initToolDataInfo()
@@ -574,8 +609,10 @@ class DataTabWidget(QWidget):
         a3.triggered.connect(lambda: self.linePlot(point))
         a4 = QAction('regression plot', self)
         a4.triggered.connect(lambda: self.regressionPlot(point))
+        a5 = QAction('box plot', self)
+        a5.triggered.connect(lambda: self.boxPlot(point))
 
-        dataExplorerActionList = [a1, a2, a3, a4]
+        dataExplorerActionList = [a1, a2, a3, a4, a5]
         numericMenu.addActions(dataExplorerActionList)
         self.dataExplorerPopMenu.addMenu(numericMenu)
 
@@ -590,7 +627,7 @@ class DataTabWidget(QWidget):
 
         # test action
         test = QAction('test plot', self)
-        test.triggered.connect(lambda: self.nanPlot(point))
+        test.triggered.connect(lambda: self.boxPlot(point))
         self.dataExplorerPopMenu.addAction(test)
         # pop menu
         self.dataExplorerPopMenu.exec(QCursor.pos())
