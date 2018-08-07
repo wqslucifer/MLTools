@@ -20,6 +20,10 @@ from model import ml_model
 from project import ml_project
 from multiprocessing import Queue
 
+import GENERAL
+
+GENERAL.init()
+
 class MainFrame(QMainWindow):
     subprocessEnd = pyqtSignal()
     def __init__(self, parent=None):
@@ -132,6 +136,8 @@ class MainFrame(QMainWindow):
             else:
                 with open(os.path.join('./', 'setting.ml'), 'w') as _:
                     self.settingFile = os.path.join('./', 'setting.ml')
+        GENERAL.set_value('PROJECT_HOME', self.MLProject.projectDir)
+        GENERAL.set_value('PROJECT', self.MLProject)
         self.openProject(self.MLProject.projectFile)
 
     def openProjectDialog(self):
@@ -316,6 +322,8 @@ class MainFrame(QMainWindow):
 
     def openProject(self, projectFile):
         self.MLProject = ml_project.loadProject(projectFile)
+        GENERAL.set_value('PROJECT_HOME', self.MLProject.projectDir)
+        GENERAL.set_value('PROJECT', self.MLProject)
         # init local variable
         self.fullProjectDir = self.MLProject.projectDir
         self.initUI_Project()

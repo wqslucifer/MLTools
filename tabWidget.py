@@ -565,7 +565,7 @@ class DataTabWidget(QWidget):
         print(checked)
 
     def closeEvent(self, QCloseEvent):
-        # del self.dataFrame
+        del self.dataFrame
         gc.collect()
 
     def eventFilter(self, target, event):
@@ -686,6 +686,7 @@ class customTableModel(QAbstractTableModel):
         flags |= Qt.ItemIsSelectable
         flags |= Qt.ItemIsEnabled
         return flags
+
 
 
 class IpythonTabWidget(QWidget):

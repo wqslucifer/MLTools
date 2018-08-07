@@ -10,7 +10,6 @@ from model import ml_model
 
 
 # widgets for main window tabs
-
 class ModelWidget(QWidget):
     # signal
     triggered = pyqtSignal(ml_model)
@@ -572,6 +571,10 @@ class testDialog(QDialog):
         self.item = CollapsibleTabWidget(self)
         self.item.addTab('item1', QLabel('mainWidget', self))
         self.mainLayout.addWidget(self.item)
+
+
+class HistoryWidget(QWidget):
+    pass
 
 
 if __name__ == '__main__':

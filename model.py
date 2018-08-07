@@ -7,7 +7,9 @@ import os
 import gc
 import sys
 import json
+import GENERAL
 import time
+import datetime
 import pickle
 import pandas as pd
 from PyQt5.QtWidgets import QWidget, QDialog, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, \
@@ -48,6 +50,8 @@ class ml_model:
         self.ID = ''
         self.target = ''
         self.model = None
+        self.startTime = None
+        self.endTime = None
 
     @classmethod
     def initModel(cls, modelType, modelName, modelLocation):
@@ -172,6 +176,23 @@ class ml_model:
         self.target = target
         self.update()
 
+    def createHistory(self, MLProject: ml_project, score):
+        d = dict()
+        resultFile = os.path.abspath(os.path.join(MLProject.projectDir, MLProject.resultDir,
+                                                  self.modelName[:-3] + self.startTime.strftime(
+                                                      '_%Y-%m-%d_%H-%M-%S') + '.mlr'))
+        with open(resultFile, 'w') as f:
+            d['modelName'] = self.modelName
+            d['startTime'] = self.startTime.strftime('%Y-%m-%d_%H:%M:%S')
+            d['endTime'] = self.endTime.strftime('%Y-%m-%d_%H:%M:%S')
+            d['runTime'] = (self.endTime - self.startTime).seconds
+            d['trainSet'] = self.trainSet
+            d['testSet'] = self.testSet
+            d['param'] = self.param
+            d['algorithm'] = self.modelType
+            d['score'] = score
+            json.dump(d, f)
+
 
 class xgbModel(Process):
     def __init__(self, queue, MLModel: ml_model, num_rounds=1000, kFold=5):
@@ -191,6 +212,7 @@ class xgbModel(Process):
         self.target = None
         self.prepareData()
         self.queue = queue
+        self.MLProject = GENERAL.get_value('PROJECT')
 
     def prepareData(self):
         self.ID = self.MLModel.ID
@@ -218,8 +240,8 @@ class xgbModel(Process):
     def train(self):
         sys.excepthook = sys._excepthook
         sys.stdout = EmitStream(textWritten=self.writeToQueue)
-        #sys.stderr = EmitStream(textWritten=self.writeToQueue)
-
+        # sys.stderr = EmitStream(textWritten=self.writeToQueue)
+        # time.sleep(2)
         kf = KFold(self.kFold, shuffle=True, random_state=self.random_state)
         for n_fold, (trainIndex, cvIndex) in enumerate(kf.split(self.X)):
             train_X, train_y = self.X[trainIndex], self.y[trainIndex]
@@ -237,9 +259,12 @@ class xgbModel(Process):
             self.cvPredict.iloc[cvIndex, 1] = model.predict(cv_train)
             self.modelList.append(model)
 
-        #sys.stdout = sys.__stdout__
-        #sys.stderr = sys.__stderr__
-        return self.getScore(self.y, self.cvPredict.iloc[:, 1])
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        self.MLModel.endTime = datetime.datetime.now()
+        score = self.getScore(self.y, self.cvPredict.iloc[:, 1])
+        self.MLModel.createHistory(self.MLProject, score)
+        return score
 
     def getScore(self, y_true, y_pred):
         if self.MLModel.metric == 'rmse':
@@ -273,6 +298,7 @@ class xgbModel(Process):
 
     def run(self):
         print('Run child process (%s)' % os.getpid())
+        self.MLModel.startTime = datetime.datetime.now()
         self.train()
 
     def writeToQueue(self, text):
@@ -281,6 +307,7 @@ class xgbModel(Process):
 
 class EmitStream(QtCore.QObject):
     textWritten = QtCore.pyqtSignal(str)
+
     def write(self, text):
         self.textWritten.emit(str(text))
 
