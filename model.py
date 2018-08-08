@@ -313,3 +313,51 @@ class EmitStream(QtCore.QObject):
 
     def flush(self):
         pass
+
+
+class modelResult:
+    def __init__(self):
+        self.MLModel = None
+        self.modelName = None
+        self.startTime = None
+        self.endTime = None
+        self.runTime = None
+        self.trainSet = None
+        self.testSet = None
+        self.param = None
+        self.algorithm = None
+        self.score = None
+        self.MLProject = GENERAL.get_value('PROJECT')
+
+    def initWithModel(self, MLModel:ml_model):
+        self.MLModel = MLModel
+        self.modelName = MLModel.modelName
+        self.startTime = MLModel.startTime.strftime('%Y-%m-%d_%H:%M:%S')
+        self.endTime = MLModel.endTime.strftime('%Y-%m-%d_%H:%M:%S')
+        self.runTime = (MLModel.endTime - MLModel.startTime).seconds
+        self.trainSet = MLModel.trainSet
+        self.testSet = MLModel.testSet
+        self.param = MLModel.param
+        self.algorithm = MLModel.modelType
+        self.score = MLModel.score
+        self.MLProject = GENERAL.get_value('PROJECT')
+
+    def initWithDict(self, result):
+        self.modelName = result['modelName']
+        self.startTime = result['startTime']
+        self.endTime = result['endTime']
+        self.runTime = result['runTime']
+        self.trainSet = result['trainSet']
+        self.testSet = result['testSet']
+        self.param = result['param']
+        self.algorithm = result['algorithm']
+        self.score = result['score']
+        self.MLProject = GENERAL.get_value('PROJECT')
+
+    @classmethod
+    def loadResult(cls, filename):
+        with open(filename, 'r') as f:
+            resultDict = json.load(f)
+            newResult = modelResult()
+            newResult.initWithDict(resultDict)
+        return newResult

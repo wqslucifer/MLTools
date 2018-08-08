@@ -3,10 +3,12 @@ import sys
 import time
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
-    QScrollBar, QScrollArea, QTextEdit
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon,QMouseEvent
-from model import ml_model
+    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
+    QModelIndex, QAbstractItemModel, QObject
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
+    QMouseEvent, QStandardItemModel
+from model import ml_model, modelResult
 
 
 # widgets for main window tabs
@@ -92,7 +94,7 @@ class ModelWidget(QWidget):
     def mousePressEvent(self, MouseEvent):
         self.updateBgColor(QColor('#C25015'))
 
-    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent: QMouseEvent):
         self.updateBgColor(QColor('#FF6A1D'))
         print("Model tab")
         if MouseEvent.button() == Qt.RightButton:
@@ -204,10 +206,10 @@ class DataWidget(QWidget):
     def leaveEvent(self, QEvent):
         self.updateBgColor(self.normColor)
 
-    def mousePressEvent(self, MouseEvent:QMouseEvent):
+    def mousePressEvent(self, MouseEvent: QMouseEvent):
         self.updateBgColor(self.pressColor)
 
-    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent: QMouseEvent):
         self.updateBgColor(self.enterColor)
         if MouseEvent.button() == Qt.RightButton:
             print('right click menu')
@@ -295,10 +297,10 @@ class ScriptWidget(QWidget):
     def leaveEvent(self, QEvent):
         self.updateBgColor(self.normColor)
 
-    def mousePressEvent(self, MouseEvent:QMouseEvent):
+    def mousePressEvent(self, MouseEvent: QMouseEvent):
         self.updateBgColor(self.pressColor)
 
-    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent: QMouseEvent):
         self.updateBgColor(self.enterColor)
         if MouseEvent.button() == Qt.RightButton:
             print('right click menu')
@@ -381,7 +383,7 @@ class ProjectWidget(QWidget):
     def mousePressEvent(self, QMouseEvent):
         self.updateBgColor(self.pressColor)
 
-    def mouseReleaseEvent(self, MouseEvent:QMouseEvent):
+    def mouseReleaseEvent(self, MouseEvent: QMouseEvent):
         self.updateBgColor(self.enterColor)
         if MouseEvent.button() == Qt.RightButton:
             print('right click menu')
@@ -562,19 +564,108 @@ class customPushButton(QPushButton):
         QPushButton.mouseReleaseEvent(self, event)
 
 
+class HistoryWidget(QWidget):
+    def __init__(self, parent=None):
+        super(HistoryWidget, self).__init__(parent=parent)
+        self.historyView = QTreeView(self)
+        self.proxyModel = HistorySortModel(self)
+        self.sourceModel = None
+        self.initUI()
+
+    def initUI(self):
+        self.historyView.setRootIsDecorated(False)
+        self.historyView.setAlternatingRowColors(True)
+        self.historyView.setModel(self.proxyModel)
+        self.historyView.setSortingEnabled(True)
+        self.historyView.sortByColumn(1, Qt.AscendingOrder)
+
+        self.historyView.setFixedWidth(750)
+
+        self.sourceModel = QStandardItemModel(0, 6, self)
+        self.sourceModel.setHeaderData(0, Qt.Horizontal, "Model Name")
+        self.sourceModel.setHeaderData(1, Qt.Horizontal, "Algorithm")
+        self.sourceModel.setHeaderData(2, Qt.Horizontal, "Score")
+        self.sourceModel.setHeaderData(3, Qt.Horizontal, "TrainSet")
+        self.sourceModel.setHeaderData(4, Qt.Horizontal, "Running Time")
+        self.sourceModel.setHeaderData(5, Qt.Horizontal, "Param")
+        self.proxyModel.setSourceModel(self.sourceModel)
+        self.historyView.setModel(self.sourceModel)
+
+    def addItem(self, result:modelResult):
+        self.sourceModel.insertRow(self.sourceModel.rowCount())
+
+        self.sourceModel.setData(self.sourceModelindex(0, 0), result.modelName) # string
+        self.sourceModel.setData(self.sourceModelindex(0, 1), result.algorithm) # string
+        self.sourceModel.setData(self.sourceModelindex(0, 2), result.score) # float
+        self.sourceModel.setData(self.sourceModelindex(0, 3), result.trainSet) # string
+        self.sourceModel.setData(self.sourceModelindex(0, 4), result.runTime) # second
+        self.sourceModel.setData(self.sourceModelindex(0, 5), result.param) # dict
+
+
+class HistorySortModel(QSortFilterProxyModel):
+    def __init__(self, parent=None):
+        super(HistorySortModel, self).__init__(parent=parent)
+
+    def lessThan(self, left: QModelIndex, right: QModelIndex):
+        leftData = self.sourceModel().data(left)
+        rightData = self.sourceModel().data(right)
+        return True
+
+
+class HistoryItem(QWidget):
+    def __init__(self, parent=None):
+        super(HistoryItem, self).__init__(parent=parent)
+        self.mainLayout = QHBoxLayout(self)
+        self.modelInfoLayout = QVBoxLayout(self)
+        self.modelResultLayout = QVBoxLayout(self)
+        self.buttonLayout = QVBoxLayout(self)
+        self.modelName = QLabel('model name', self)
+        self.createTime = QLabel('xxxx-xx-xx xx:xx:xx', self)
+        self.runTime = QLabel('xxxx-xx-xx xx:xx:xx', self)
+        self.modelID = QLabel('No.xxx', self)
+        self.score = QLabel(str(999.09999), self)
+        self.modelType = QLabel('asss', self)
+        self.param = QLabel(str(dict()), self)
+        self.trainSet = QLabel('adsfasdf', self)
+
+        self.openModelButton = QPushButton('Open', self)
+
+        self.setLayout(self.mainLayout)
+        self.initUI()
+
+    def initUI(self):
+        self.modelInfoLayout.addWidget(self.modelName)
+        self.modelInfoLayout.addWidget(self.modelID)
+        self.modelInfoLayout.addWidget(self.createTime)
+        self.modelInfoLayout.addWidget(self.runTime)
+
+        self.modelResultLayout.addWidget(self.score)
+        self.modelResultLayout.addWidget(self.modelType)
+        self.modelResultLayout.addWidget(self.param)
+        self.modelResultLayout.addWidget(self.trainSet)
+
+        self.buttonLayout.addWidget(self.openModelButton)
+
+        self.mainLayout.addLayout(self.modelInfoLayout)
+        self.mainLayout.addLayout(self.modelResultLayout)
+        self.mainLayout.addLayout(self.buttonLayout)
+
+        self.mainLayout.setStretch(0, 1)
+        self.mainLayout.setStretch(1, 2)
+        self.mainLayout.setStretch(2, 1)
+
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(100)
+
+
 class testDialog(QDialog):
     def __init__(self):
         super(testDialog, self).__init__()
         self.mainLayout = QVBoxLayout(self)
         self.setFixedSize(800, 500)
         self.setLayout(self.mainLayout)
-        self.item = CollapsibleTabWidget(self)
-        self.item.addTab('item1', QLabel('mainWidget', self))
+        self.item = HistoryWidget(self)
         self.mainLayout.addWidget(self.item)
-
-
-class HistoryWidget(QWidget):
-    pass
 
 
 if __name__ == '__main__':
