@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
@@ -246,6 +246,12 @@ class MainFrame(QMainWindow):
                 mw.triggered.connect(self.addModelTab)
                 self.startTabLayout.addWidget(mw)
 
+        if self.MLProject.resultFiles:
+            for d in self.MLProject.resultFiles:
+                rw = ResultWidget(d)
+                rw.triggered.connect(self.addResultTab)
+                self.startTabLayout.addWidget(rw)
+
     def addModelTab(self, MLModel: ml_model):
         modelTab = ModelTabWidget(MLModel, self.MLProject, self)
         self.tabWindow.addTab(modelTab, MLModel.modelName)
@@ -286,6 +292,9 @@ class MainFrame(QMainWindow):
             # scrollarea.setWidget(ScriptTabWidget(scriptFile))
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+    def addResultTab(self, resultFile:str):
+        print(resultFile)
 
     def newIpython(self, newview: QWebEngineView):
         if not self.popNewIpythonTab:

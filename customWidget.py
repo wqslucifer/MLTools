@@ -8,6 +8,11 @@ from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, 
     QModelIndex, QAbstractItemModel, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
     QMouseEvent, QStandardItemModel
+
+from PyQt5.QtQuick import QQuickView
+from PyQt5.QtCore import QUrl
+from PyQt5.QtGui import QGuiApplication
+
 from model import ml_model, modelResult
 
 
@@ -396,6 +401,94 @@ class ProjectWidget(QWidget):
         self.pressColor = QColor(pressColor)
 
 
+class ResultWidget(QWidget):
+    # signal
+    triggered = pyqtSignal(str)
+
+    def __init__(self, fileName, parent=None):
+        super(ResultWidget, self).__init__(parent=parent)
+        self.setFixedSize(180, 180)
+        self.mainLayout = QGridLayout(self)
+        self.edge = None
+        self.labelFont = QFont("Arial", 10, QFont.Bold)
+        self.bgColor = None
+        self.normColor = None
+        self.enterColor = None
+        self.pressColor = None
+        self.ColorSet = {'normColor': '#FFAAFF', 'enterColor': '#F95EF9', 'pressColor': '#DC56DC'}
+        # Data type
+        self.fileName = fileName
+        self.MLResult = modelResult.loadResult(self.fileName)
+        self.resultFile = QLabel(os.path.basename(self.fileName), self)
+        self.modelName = QLabel(self.MLResult.modelName, self)
+        self.algorithm = QLabel(self.MLResult.algorithm, self)
+        self.modelScore = QLabel(str(self.MLResult.score), self)
+        self.date = QLabel(self.MLResult.startTime, self)
+        #self.ScriptLabel.setFont(QFont("Arial", 11, QFont.Bold))
+        self.initUI()
+
+    def initUI(self):
+        self.setAutoFillBackground(True)
+        self.setLayout(self.mainLayout)
+        self.mainLayout.setContentsMargins(18, 18, 0, 0)
+        self.mainLayout.addWidget(self.resultFile, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.modelName, 1, 0)
+        self.mainLayout.addWidget(self.algorithm, 2, 0)
+        self.mainLayout.addWidget(self.modelScore, 3, 0)
+        self.mainLayout.addWidget(self.date, 4, 0)
+        self.mainLayout.setRowStretch(5, 10)
+
+        # set color set
+        self.setColorSet(**self.ColorSet)
+        self.bgColor = self.normColor
+        self.edge = QRectF(5, 5, 170, 170)
+        # bg translucent
+        self.setStyleSheet("background-color: rgba(0,0,0,0)")
+
+    def paintEvent(self, ev):
+        path = QPainterPath()
+        painter = QPainter(self)
+        painter.setPen(QPen(QColor(255, 0, 0, 127), 6))
+        painter.setRenderHint(QPainter.Antialiasing)
+        path.addRoundedRect(self.edge, 15, 15)
+        painter.drawPath(path)
+        painter.fillPath(path, self.bgColor)
+
+    def updateBgColor(self, color):
+        self.bgColor = color
+        self.update()
+
+    def enterEvent(self, QEvent):
+        self.updateBgColor(self.enterColor)
+
+    def leaveEvent(self, QEvent):
+        self.updateBgColor(self.normColor)
+
+    def mousePressEvent(self, MouseEvent: QMouseEvent):
+        self.updateBgColor(self.pressColor)
+
+    def mouseReleaseEvent(self, MouseEvent: QMouseEvent):
+        self.updateBgColor(self.enterColor)
+        if MouseEvent.button() == Qt.RightButton:
+            print('right click menu')
+        elif MouseEvent.button() == Qt.LeftButton:
+            self.triggered.emit(self.fileName)
+
+    def setColorSet(self, normColor, enterColor, pressColor):
+        self.normColor = QColor(normColor)
+        self.enterColor = QColor(enterColor)
+        self.pressColor = QColor(pressColor)
+
+    def createNewHLayout(self, label, value, font, color='0B73F7'):
+        newLayout = QHBoxLayout(self)
+        newLayout.addWidget(label)
+        newLayout.addWidget(value, Qt.AlignLeft)
+        label.setFont(font)
+        value.setFont(font)
+        value.setStyleSheet("color:#%s;" % color)
+        return newLayout
+
+
 class TitleBar(QWidget):
     left = 0
     up = 1
@@ -569,7 +662,7 @@ class HistoryWidget(QWidget):
         super(HistoryWidget, self).__init__(parent=parent)
         self.historyView = QTreeView(self)
         self.proxyModel = HistorySortModel(self)
-        self.sourceModel = None
+        self.sourceModel = QStandardItemModel()
         self.initUI()
 
     def initUI(self):
@@ -594,12 +687,12 @@ class HistoryWidget(QWidget):
     def addItem(self, result:modelResult):
         self.sourceModel.insertRow(self.sourceModel.rowCount())
 
-        self.sourceModel.setData(self.sourceModelindex(0, 0), result.modelName) # string
-        self.sourceModel.setData(self.sourceModelindex(0, 1), result.algorithm) # string
-        self.sourceModel.setData(self.sourceModelindex(0, 2), result.score) # float
-        self.sourceModel.setData(self.sourceModelindex(0, 3), result.trainSet) # string
-        self.sourceModel.setData(self.sourceModelindex(0, 4), result.runTime) # second
-        self.sourceModel.setData(self.sourceModelindex(0, 5), result.param) # dict
+        self.sourceModel.setData(self.sourceModel.index(0, 0), result.modelName) # string
+        self.sourceModel.setData(self.sourceModel.index(0, 1), result.algorithm) # string
+        self.sourceModel.setData(self.sourceModel.index(0, 2), result.score) # float
+        self.sourceModel.setData(self.sourceModel.index(0, 3), result.trainSet) # string
+        self.sourceModel.setData(self.sourceModel.index(0, 4), result.runTime) # second
+        self.sourceModel.setData(self.sourceModel.index(0, 5), result.param) # dict
 
 
 class HistorySortModel(QSortFilterProxyModel):
