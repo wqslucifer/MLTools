@@ -11,10 +11,13 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, HistoryWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtQuick import QQuickView
+from PyQt5.QtCore import QUrl
+
 from SwitchButton import switchButton
 from model import ml_model
 from project import ml_project
@@ -294,7 +297,22 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     def addResultTab(self, resultFile:str):
-        print(resultFile)
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        # add scroll area to tab window
+        self.tabWindow.addTab(scrollarea, os.path.basename(resultFile))
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+        # add tab detail widget to scroll area
+        qml = QQuickView()
+        qml.setSource(QUrl('queueTab.qml'))
+        qml.setResizeMode(QQuickView.SizeRootObjectToView)
+        resultTab = QWidget.createWindowContainer(qml)
+        scrollarea.setWidget(resultTab)
+        self.tabList.append(resultTab)
+
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     def newIpython(self, newview: QWebEngineView):
         if not self.popNewIpythonTab:

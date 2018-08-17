@@ -688,7 +688,6 @@ class customTableModel(QAbstractTableModel):
         return flags
 
 
-
 class IpythonTabWidget(QWidget):
     def __init__(self, scriptDir, parent=None):
         super(IpythonTabWidget, self).__init__(parent)

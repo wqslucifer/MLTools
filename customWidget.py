@@ -9,8 +9,9 @@ from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, 
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
     QMouseEvent, QStandardItemModel
 
-from PyQt5.QtQuick import QQuickView
-from PyQt5.QtCore import QUrl
+from PyQt5.QtQuick import QQuickView, QQuickItem
+from PyQt5.QtQuickWidgets import QQuickWidget
+from PyQt5.QtCore import QUrl, pyqtSlot
 from PyQt5.QtGui import QGuiApplication
 
 from model import ml_model, modelResult
@@ -419,24 +420,25 @@ class ResultWidget(QWidget):
         # Data type
         self.fileName = fileName
         self.MLResult = modelResult.loadResult(self.fileName)
-        self.resultFile = QLabel(os.path.basename(self.fileName), self)
+        # self.resultFile = QLabel(os.path.basename(self.fileName), self)
         self.modelName = QLabel(self.MLResult.modelName, self)
         self.algorithm = QLabel(self.MLResult.algorithm, self)
-        self.modelScore = QLabel(str(self.MLResult.score), self)
+        self.modelScore = QLabel('Score:' + str(self.MLResult.score), self)
         self.date = QLabel(self.MLResult.startTime, self)
-        #self.ScriptLabel.setFont(QFont("Arial", 11, QFont.Bold))
+        self.modelName.setFont(QFont("Arial", 11, QFont.Bold))
+        self.algorithm.setFont(QFont("Arial", 11, QFont.Bold))
         self.initUI()
 
     def initUI(self):
         self.setAutoFillBackground(True)
         self.setLayout(self.mainLayout)
         self.mainLayout.setContentsMargins(18, 18, 0, 0)
-        self.mainLayout.addWidget(self.resultFile, 0, 0, Qt.AlignTop)
-        self.mainLayout.addWidget(self.modelName, 1, 0)
-        self.mainLayout.addWidget(self.algorithm, 2, 0)
-        self.mainLayout.addWidget(self.modelScore, 3, 0)
-        self.mainLayout.addWidget(self.date, 4, 0)
-        self.mainLayout.setRowStretch(5, 10)
+        # self.mainLayout.addWidget(self.resultFile, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.modelName, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.algorithm, 1, 0)
+        self.mainLayout.addWidget(self.modelScore, 2, 0)
+        self.mainLayout.addWidget(self.date, 3, 0)
+        self.mainLayout.setRowStretch(4, 10)
 
         # set color set
         self.setColorSet(**self.ColorSet)
@@ -684,15 +686,15 @@ class HistoryWidget(QWidget):
         self.proxyModel.setSourceModel(self.sourceModel)
         self.historyView.setModel(self.sourceModel)
 
-    def addItem(self, result:modelResult):
+    def addItem(self, result: modelResult):
         self.sourceModel.insertRow(self.sourceModel.rowCount())
 
-        self.sourceModel.setData(self.sourceModel.index(0, 0), result.modelName) # string
-        self.sourceModel.setData(self.sourceModel.index(0, 1), result.algorithm) # string
-        self.sourceModel.setData(self.sourceModel.index(0, 2), result.score) # float
-        self.sourceModel.setData(self.sourceModel.index(0, 3), result.trainSet) # string
-        self.sourceModel.setData(self.sourceModel.index(0, 4), result.runTime) # second
-        self.sourceModel.setData(self.sourceModel.index(0, 5), result.param) # dict
+        self.sourceModel.setData(self.sourceModel.index(0, 0), result.modelName)  # string
+        self.sourceModel.setData(self.sourceModel.index(0, 1), result.algorithm)  # string
+        self.sourceModel.setData(self.sourceModel.index(0, 2), result.score)  # float
+        self.sourceModel.setData(self.sourceModel.index(0, 3), result.trainSet)  # string
+        self.sourceModel.setData(self.sourceModel.index(0, 4), result.runTime)  # second
+        self.sourceModel.setData(self.sourceModel.index(0, 5), result.param)  # dict
 
 
 class HistorySortModel(QSortFilterProxyModel):
@@ -757,8 +759,31 @@ class testDialog(QDialog):
         self.mainLayout = QVBoxLayout(self)
         self.setFixedSize(800, 500)
         self.setLayout(self.mainLayout)
-        self.item = HistoryWidget(self)
-        self.mainLayout.addWidget(self.item)
+        # qml = QQuickView()
+        # qml.setSource(QUrl('queueTab.qml'))
+        # qml.setResizeMode(QQuickView.SizeRootObjectToView)
+        # qml = QWidget.createWindowContainer(qml)
+        qml = queueTabWidget(self)
+        self.mainLayout.addWidget(qml)
+        r = qml.rootObject()
+        r.testPrint()
+        pass
+
+
+
+class queueTabWidget(QQuickWidget):
+    chartCleared = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super(queueTabWidget, self).__init__(parent=parent)
+        self.setSource(QUrl.fromLocalFile('queueTab.qml'))
+        self.setResizeMode(QQuickWidget.SizeRootObjectToView)
+        self.rootContext().setContextProperty('queueTabWidget', self)
+
+    @pyqtSlot(str)
+    def myprint(self, value):
+        print(value)
+        self.chartCleared.emit()
 
 
 if __name__ == '__main__':
