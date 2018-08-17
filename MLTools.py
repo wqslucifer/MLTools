@@ -11,7 +11,8 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, HistoryWidget
+from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
+    HistoryWidget, queueTabWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
@@ -27,8 +28,10 @@ import GENERAL
 
 GENERAL.init()
 
+
 class MainFrame(QMainWindow):
     subprocessEnd = pyqtSignal()
+
     def __init__(self, parent=None):
         super(MainFrame, self).__init__(parent)
         self.ui = loadUi('MainFrame.ui', self)
@@ -69,6 +72,9 @@ class MainFrame(QMainWindow):
         self.initUI()
         self.initTabAndExplorer()
 
+        # local variable
+        self.queueTab = None
+
     def initUI(self):
         # set main layout and splitter
         splitterMain = QSplitter(Qt.Horizontal)
@@ -101,6 +107,11 @@ class MainFrame(QMainWindow):
         self.modelAction.setStatusTip('Create Model')
         self.modelAction.triggered.connect(self.createModel)
         self.toolBar.addAction(self.modelAction)
+        # queue
+        self.queueAction = QAction(QIcon('./res/Queue.ico'), 'Queue Management', self)
+        self.queueAction.setStatusTip('Queue Management')
+        self.queueAction.triggered.connect(self.addQueueTab)
+        self.toolBar.addAction(self.queueAction)
         # set menu
         openProjectMenu = self.ui.actionOpen_Project
         openProjectMenu.triggered.connect(self.openProjectDialog)
@@ -296,7 +307,7 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
-    def addResultTab(self, resultFile:str):
+    def addResultTab(self, resultFile: str):
         scrollarea = QScrollArea(self)
         scrollarea.setWidgetResizable(True)
         scrollbar = QScrollBar(self)
@@ -304,12 +315,34 @@ class MainFrame(QMainWindow):
         self.tabWindow.addTab(scrollarea, os.path.basename(resultFile))
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
-        qml = QQuickView()
-        qml.setSource(QUrl('queueTab.qml'))
-        qml.setResizeMode(QQuickView.SizeRootObjectToView)
-        resultTab = QWidget.createWindowContainer(qml)
-        scrollarea.setWidget(resultTab)
-        self.tabList.append(resultTab)
+        # qml = QQuickView()
+        # qml.setSource(QUrl('queueTab.qml'))
+        # qml.setResizeMode(QQuickView.SizeRootObjectToView)
+        # resultTab = QWidget.createWindowContainer(qml)
+        # scrollarea.setWidget(resultTab)
+        # self.tabList.append(resultTab)
+
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+    def addQueueTab(self):
+        if not self.MLProject:
+            QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
+            return
+        if self.queueTab:
+            return
+
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        # add scroll area to tab window
+        self.tabWindow.addTab(scrollarea, 'Queue')
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+        # add tab detail widget to scroll area
+
+        self.queueTab = queueTabWidget(self)
+        scrollarea.setWidget(self.queueTab)
+        self.tabList.append(self.queueTab)
 
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -419,8 +452,12 @@ class MainFrame(QMainWindow):
             elif isinstance(self.tabList[index], QWebEngineView):
                 pass
             self.tabList[index].close()
-            self.tabList.remove(self.tabList[index])
+            temp = self.tabList[index]
+            self.tabList.remove(temp)
             self.tabWindow.removeTab(index)
+            if isinstance(temp, queueTabWidget):
+                self.queueTab = None
+            del temp
 
     def onPopNewIpythonTab(self, value):
         self.popNewIpythonTab = value
@@ -448,7 +485,7 @@ class MainFrame(QMainWindow):
         if len(self.tabList):
             self.tabWindow.removeTab(0)
             del self.tabList[0]
-            #self.tabList.remove(self.tabList[0])
+            # self.tabList.remove(self.tabList[0])
             self.initProjectTab()
 
 
@@ -718,7 +755,7 @@ class AddFileDialog(QDialog):
         dialog = QFileDialog()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        fileTypes = "Data File (*.csv *.pkl);;"\
+        fileTypes = "Data File (*.csv *.pkl);;" \
                     "CSV File (*.csv);;" \
                     "Pickle File (*.pkl)"
         if os.path.exists(os.path.join(self.MLProject.projectDir, 'data')):
@@ -817,10 +854,10 @@ class AddFileDialog(QDialog):
         self.done(QDialog.Accepted)
         self.MLProject.dumpProject(self.MLProject.projectFile)
 
-        #self.MLProject.dataFiles_csv = list(set(self.MLProject.dataFiles_csv))
-        #self.MLProject.dataFiles_pkl = list(set(self.MLProject.dataFiles_pkl))
-        #self.MLProject.modelFiles = list(set(self.MLProject.modelFiles))
-        #self.MLProject.scriptFiles = list(set(self.MLProject.scriptFiles))
+        # self.MLProject.dataFiles_csv = list(set(self.MLProject.dataFiles_csv))
+        # self.MLProject.dataFiles_pkl = list(set(self.MLProject.dataFiles_pkl))
+        # self.MLProject.modelFiles = list(set(self.MLProject.modelFiles))
+        # self.MLProject.scriptFiles = list(set(self.MLProject.scriptFiles))
 
     def cancel(self):
         self.done(QDialog.Rejected)

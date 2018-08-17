@@ -766,14 +766,13 @@ class testDialog(QDialog):
         qml = queueTabWidget(self)
         self.mainLayout.addWidget(qml)
         r = qml.rootObject()
-        r.testPrint()
+        r.testPrint('test1name', 'alg_xgb','param_asdf')
         pass
 
 
 
 class queueTabWidget(QQuickWidget):
     chartCleared = pyqtSignal()
-
     def __init__(self, parent=None):
         super(queueTabWidget, self).__init__(parent=parent)
         self.setSource(QUrl.fromLocalFile('queueTab.qml'))
