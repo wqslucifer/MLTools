@@ -2,7 +2,7 @@ import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction
+    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
@@ -804,7 +804,9 @@ class ModelTabWidget(QWidget):
         self.modelDataScroll = QScrollArea(self)
 
         self.modelInfoLayout = QFormLayout(self)
-        self.modelParamLayout = QFormLayout(self)
+        # self.modelParamLayout = QFormLayout(self)
+        self.modelXGBParamLayout = QFormLayout(self)
+        self.modelLGBMParamLayout = QFormLayout(self)
         self.modelDataLayout = QFormLayout(self)
         # local
         self.metric = QComboBox(self)
@@ -825,7 +827,6 @@ class ModelTabWidget(QWidget):
 
         self.initUI()
         self.initModelInfo()
-        self.initXGBParam()
         self.initData()
         self.infoQueue = Queue(10)
 
@@ -854,10 +855,17 @@ class ModelTabWidget(QWidget):
         l.addWidget(self.modelParamScroll)
         self.modelParam.setLayout(l)
         self.modelParamScroll.setWidgetResizable(True)
+        self.modelParamStack = QStackedWidget(self)
+        self.initXGBParam()
+        self.initLGBMParam()
         t = QWidget(self)
-        t.setLayout(self.modelParamLayout)
-        self.modelParamScroll.setWidget(t)
+        t.setLayout(self.modelXGBParamLayout)
+        self.modelParamStack.addWidget(t)
+        t = QWidget(self)
+        t.setLayout(self.modelLGBMParamLayout)
+        self.modelParamStack.addWidget(t)
         self.modelParamScroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.modelParamScroll.setWidget(self.modelParamStack)
 
         l = QHBoxLayout(self)
         l.addWidget(self.modelDataScroll)
@@ -885,12 +893,15 @@ class ModelTabWidget(QWidget):
             ['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet'])  # G setting
         algorithm.currentTextChanged.connect(lambda: self.setMetricSet(self.metric_map[algorithm.currentText()]))
         algorithm.currentTextChanged.connect(lambda: self.MLModel.setModelType(algorithm.currentText()))
+        algorithm.currentTextChanged.connect(lambda: self.modelParamStack.setCurrentIndex(algorithm.currentIndex()))
         self.modelInfoLayout.addRow('Algorithm: ', algorithm)
 
         if algorithm.currentText() == 'XGB':
             self.setMetricSet(self.xgb_metric)
+            self.modelParamStack.setCurrentIndex(0)
         elif algorithm.currentText() == 'LGBM':
             self.setMetricSet(self.lightGBM_metric)
+            self.modelParamStack.setCurrentIndex(1)
         elif algorithm.currentText() == 'RandomForest':
             self.setMetricSet(self.sklearn_classification_metric + self.sklearn_regression_metric)
         else:
@@ -914,99 +925,219 @@ class ModelTabWidget(QWidget):
         resultFileCheck.stateChanged.connect(lambda: resultFile.setDisabled(resultFileCheck.checkState()))
 
     def initXGBParam(self):
-        self.modelParamLayout.setContentsMargins(15, 20, 15, 10)
+        self.modelXGBParamLayout.setContentsMargins(15, 20, 15, 10)
         objective = QComboBox(self)
         objective.addItems(
             ['reg:linear', 'reg:logistic', 'binary:logistic', 'binary:logitraw', 'count:poisson', 'reg:gamma'])
-        self.modelParamLayout.addRow('objective: ', objective)
+        self.modelXGBParamLayout.addRow('objective: ', objective)
         objective.currentTextChanged.connect(lambda: self.setParam('objective', objective.currentText()))
 
         learning_rate = QDoubleSpinBox(self)
         learning_rate.setRange(0, 1)
         learning_rate.setValue(self.modelParamDict['eta'])
         learning_rate.setSingleStep(0.01)
+        learning_rate.setDecimals(3)
         learning_rate.valueChanged.connect(lambda: self.setParam('learning_rate', learning_rate.value()))
-        self.modelParamLayout.addRow('learning_rate: ', learning_rate)
+        self.modelXGBParamLayout.addRow('learning_rate: ', learning_rate)
 
         gamma = QDoubleSpinBox(self)
         gamma.setMinimum(0)
         gamma.setSingleStep(0.1)
+        gamma.setDecimals(3)
         gamma.setValue(self.modelParamDict['gamma'])
         gamma.valueChanged.connect(lambda: self.setParam('gamma', gamma.value()))
-        self.modelParamLayout.addRow('gamma: ', gamma)
+        self.modelXGBParamLayout.addRow('gamma: ', gamma)
 
         max_depth = QSpinBox(self)
         max_depth.setMinimum(0)
         max_depth.setValue(self.modelParamDict['max_depth'])
         max_depth.valueChanged.connect(lambda: self.setParam('max_depth', max_depth.value()))
-        self.modelParamLayout.addRow('max_depth: ', max_depth)
+        self.modelXGBParamLayout.addRow('max_depth: ', max_depth)
 
         min_child_weight = QDoubleSpinBox(self)
         min_child_weight.setMinimum(0)
         min_child_weight.setSingleStep(0.1)
+        min_child_weight.setDecimals(3)
         min_child_weight.setValue(self.modelParamDict['min_child_weight'])
         min_child_weight.valueChanged.connect(lambda: self.setParam('min_child_weight', min_child_weight.value()))
-        self.modelParamLayout.addRow('min_child_weight: ', min_child_weight)
+        self.modelXGBParamLayout.addRow('min_child_weight: ', min_child_weight)
 
         max_delta_step = QDoubleSpinBox(self)
         max_delta_step.setMinimum(0)
         max_delta_step.setSingleStep(0.1)
+        max_delta_step.setDecimals(3)
         max_delta_step.setValue(self.modelParamDict['max_delta_step'])
         max_delta_step.valueChanged.connect(lambda: self.setParam('max_delta_step', max_delta_step.value()))
-        self.modelParamLayout.addRow('max_delta_step: ', max_delta_step)
+        self.modelXGBParamLayout.addRow('max_delta_step: ', max_delta_step)
 
         subsample = QDoubleSpinBox(self)
         subsample.setMinimum(0.01)
         subsample.setSingleStep(0.1)
+        subsample.setDecimals(3)
         subsample.setValue(self.modelParamDict['subsample'])
         subsample.valueChanged.connect(lambda: self.setParam('subsample', subsample.value()))
-        self.modelParamLayout.addRow('subsample: ', subsample)
+        self.modelXGBParamLayout.addRow('subsample: ', subsample)
 
         colsample_bytree = QDoubleSpinBox(self)
         colsample_bytree.setMinimum(0.01)
         colsample_bytree.setSingleStep(0.1)
+        colsample_bytree.setDecimals(3)
         colsample_bytree.setValue(self.modelParamDict['colsample_bytree'])
         colsample_bytree.valueChanged.connect(lambda: self.setParam('colsample_bytree', colsample_bytree.value()))
-        self.modelParamLayout.addRow('colsample_bytree: ', colsample_bytree)
+        self.modelXGBParamLayout.addRow('colsample_bytree: ', colsample_bytree)
 
         colsample_bylevel = QDoubleSpinBox(self)
         colsample_bylevel.setMinimum(0.01)
         colsample_bylevel.setSingleStep(0.1)
+        colsample_bylevel.setDecimals(3)
         colsample_bylevel.setValue(self.modelParamDict['colsample_bylevel'])
         colsample_bylevel.valueChanged.connect(lambda: self.setParam('colsample_bylevel', colsample_bylevel.value()))
-        self.modelParamLayout.addRow('colsample_bylevel: ', colsample_bylevel)
+        self.modelXGBParamLayout.addRow('colsample_bylevel: ', colsample_bylevel)
 
         reg_lambda = QDoubleSpinBox(self)
         reg_lambda.setMinimum(0)
         reg_lambda.setSingleStep(0.1)
+        reg_lambda.setDecimals(3)
         reg_lambda.setValue(self.modelParamDict['reg_lambda'])
         reg_lambda.valueChanged.connect(lambda: self.setParam('reg_lambda', reg_lambda.value()))
-        self.modelParamLayout.addRow('reg_lambda: ', reg_lambda)
+        self.modelXGBParamLayout.addRow('reg_lambda: ', reg_lambda)
 
         reg_alpha = QDoubleSpinBox(self)
         reg_alpha.setMinimum(0)
         reg_alpha.setSingleStep(0.1)
+        reg_alpha.setDecimals(3)
         reg_alpha.setValue(self.modelParamDict['reg_alpha'])
         reg_alpha.valueChanged.connect(lambda: self.setParam('reg_alpha', reg_alpha.value()))
-        self.modelParamLayout.addRow('reg_alpha: ', reg_alpha)
+        self.modelXGBParamLayout.addRow('reg_alpha: ', reg_alpha)
 
         tree_method = QComboBox(self)
         tree_method.addItems(['auto', 'exact', 'approx', 'hist', 'gpu_exact', 'gpu_hist'])
         tree_method.setCurrentText(self.modelParamDict['tree_method'])
         tree_method.currentTextChanged.connect(lambda: self.setParam('tree_method', tree_method.currentText()))
-        self.modelParamLayout.addRow('tree_method: ', tree_method)
+        self.modelXGBParamLayout.addRow('tree_method: ', tree_method)
 
         scale_pos_weight = QDoubleSpinBox(self)
         scale_pos_weight.setMinimum(0)
         scale_pos_weight.setSingleStep(0.1)
+        scale_pos_weight.setDecimals(3)
         scale_pos_weight.setValue(self.modelParamDict['scale_pos_weight'])
         scale_pos_weight.valueChanged.connect(lambda: self.setParam('scale_pos_weight', scale_pos_weight.value()))
-        self.modelParamLayout.addRow('scale_pos_weight: ', scale_pos_weight)
+        self.modelXGBParamLayout.addRow('scale_pos_weight: ', scale_pos_weight)
 
         predictor = QComboBox(self)
         predictor.addItems(['cpu_predictor', 'gpu_predictor'])
         predictor.currentTextChanged.connect(lambda: self.setParam('predictor', predictor.currentText()))
-        self.modelParamLayout.addRow('predictor: ', predictor)
+        self.modelXGBParamLayout.addRow('predictor: ', predictor)
+
+    def initLGBMParam(self):
+        self.modelLGBMParamLayout.setContentsMargins(15, 20, 15, 10)
+
+        boosting = QComboBox(self)
+        boosting.addItems(
+            ['gbdt', 'gbrt', 'rf', 'random_forest', 'dart', 'goss'])
+        self.modelLGBMParamLayout.addRow('boosting: ', boosting)
+        boosting.currentTextChanged.connect(lambda: self.setParam('boosting', boosting.currentText()))
+
+        max_depth = QSpinBox(self)
+        max_depth.setValue(-1)
+        max_depth.setMinimum(-1)
+        max_depth.setSingleStep(1)
+        max_depth.valueChanged.connect(lambda: self.setParam('max_depth', max_depth.value()))
+        self.modelLGBMParamLayout.addRow('max_depth: ', max_depth)
+
+        min_data_in_leaf = QSpinBox(self)
+        min_data_in_leaf.setValue(20)
+        min_data_in_leaf.setMinimum(0)
+        min_data_in_leaf.setSingleStep(1)
+        min_data_in_leaf.valueChanged.connect(lambda: self.setParam('min_data_in_leaf', min_data_in_leaf.value()))
+        self.modelLGBMParamLayout.addRow('min_data_in_leaf: ', min_data_in_leaf)
+
+        min_sum_hessian_in_leaf = QDoubleSpinBox(self)
+        min_sum_hessian_in_leaf.setValue(1e-3)
+        min_sum_hessian_in_leaf.setMinimum(0)
+        min_sum_hessian_in_leaf.setSingleStep(1e-2)
+        min_sum_hessian_in_leaf.setDecimals(3)
+        min_sum_hessian_in_leaf.valueChanged.connect(
+            lambda: self.setParam('min_sum_hessian_in_leaf', min_sum_hessian_in_leaf.value()))
+        self.modelLGBMParamLayout.addRow('min_sum_hessian_in_leaf: ', min_sum_hessian_in_leaf)
+
+        subsample = QDoubleSpinBox(self)
+        subsample.setValue(1.0)
+        subsample.setRange(1e-6, 1)
+        subsample.setSingleStep(1e-2)
+        subsample.setDecimals(3)
+        subsample.valueChanged.connect(lambda: self.setParam('subsample', subsample.value()))
+        self.modelLGBMParamLayout.addRow('subsample: ', subsample)
+
+        subsample_freq = QSpinBox(self)
+        subsample_freq.setValue(0)
+        subsample_freq.setMinimum(0)
+        subsample_freq.setSingleStep(1)
+        subsample_freq.valueChanged.connect(lambda: self.setParam('subsample_freq', subsample_freq.value()))
+        self.modelLGBMParamLayout.addRow('subsample_freq: ', subsample_freq)
+
+        feature_fraction = QDoubleSpinBox(self)
+        feature_fraction.setValue(1.0)
+        feature_fraction.setRange(1e-6, 1)
+        feature_fraction.setSingleStep(1e-2)
+        feature_fraction.setDecimals(3)
+        feature_fraction.valueChanged.connect(lambda: self.setParam('feature_fraction', feature_fraction.value()))
+        self.modelLGBMParamLayout.addRow('feature_fraction: ', feature_fraction)
+
+        early_stopping_round = QSpinBox(self)
+        early_stopping_round.setValue(0)
+        early_stopping_round.setMinimum(0)
+        early_stopping_round.setSingleStep(1)
+        early_stopping_round.valueChanged.connect(
+            lambda: self.setParam('early_stopping_round', early_stopping_round.value()))
+        self.modelLGBMParamLayout.addRow('early_stopping_round: ', early_stopping_round)
+
+        max_delta_step = QDoubleSpinBox(self)  # used to limit the max output of tree leaves
+        max_delta_step.setValue(0)  # final max output of leaves is learning_rate * max_delta_step
+        max_delta_step.setMinimum(0)
+        max_delta_step.setSingleStep(1e-2)
+        max_delta_step.setDecimals(3)
+        max_delta_step.valueChanged.connect(lambda: self.setParam('max_delta_step', max_delta_step.value()))
+        self.modelLGBMParamLayout.addRow('max_delta_step: ', max_delta_step)
+
+        reg_alpha = QDoubleSpinBox(self)
+        reg_alpha.setValue(0)
+        reg_alpha.setMinimum(0)
+        reg_alpha.setSingleStep(1e-2)
+        reg_alpha.setDecimals(3)
+        reg_alpha.valueChanged.connect(lambda: self.setParam('reg_alpha', reg_alpha.value()))
+        self.modelLGBMParamLayout.addRow('reg_alpha: ', reg_alpha)
+
+        reg_lambda = QDoubleSpinBox(self)
+        reg_lambda.setValue(0)
+        reg_lambda.setMinimum(0)
+        reg_lambda.setSingleStep(1e-2)
+        reg_lambda.setDecimals(3)
+        reg_lambda.valueChanged.connect(lambda: self.setParam('reg_lambda', reg_lambda.value()))
+        self.modelLGBMParamLayout.addRow('reg_lambda: ', reg_lambda)
+
+        min_split_gain = QDoubleSpinBox(self)
+        min_split_gain.setValue(0)
+        min_split_gain.setMinimum(0)
+        min_split_gain.setSingleStep(1e-2)
+        min_split_gain.setDecimals(3)
+        min_split_gain.valueChanged.connect(lambda: self.setParam('min_split_gain', min_split_gain.value()))
+        self.modelLGBMParamLayout.addRow('min_split_gain: ', min_split_gain)
+
+        drop_rate = QDoubleSpinBox(self)  # used only in dart
+        drop_rate.setValue(0.1)
+        drop_rate.setRange(0, 1)
+        drop_rate.setSingleStep(1e-2)
+        drop_rate.setDecimals(3)
+        drop_rate.valueChanged.connect(lambda: self.setParam('drop_rate', drop_rate.value()))
+        self.modelLGBMParamLayout.addRow('drop_rate: ', drop_rate)
+
+        max_drop = QSpinBox(self)  # used only in dart
+        max_drop.setValue(50)
+        max_drop.setMinimum(0)
+        max_drop.setSingleStep(5)
+        max_drop.valueChanged.connect(lambda: self.setParam('max_drop', max_drop.value()))
+        self.modelLGBMParamLayout.addRow('max_drop: ', max_drop)
 
     def initData(self):
         self.modelDataLayout.setContentsMargins(10, 20, 10, 10)

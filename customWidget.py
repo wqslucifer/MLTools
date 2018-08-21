@@ -766,7 +766,8 @@ class testDialog(QDialog):
         qml = queueTabWidget(self)
         self.mainLayout.addWidget(qml)
         r = qml.rootObject()
-        r.testPrint('test1name', 'alg_xgb','param_asdf')
+        for i in range(20):
+            r.testPrint('test1name', 'alg_xgb','param_asdf')
         pass
 
 
