@@ -28,22 +28,23 @@ class ModelWidget(QWidget):
         self.mainLayout = QGridLayout(self)
         self.edge = None
         self.bgColor = None
-        self.labelFont = QFont("Arial", 10, QFont.Bold)
+        self.labelFont = QFont("Arial", 10, QFont.Times)
         self.MLModel = ml_model.loadModel(modelFile)
         # model name
         self.modelName = QLabel(self.MLModel.modelName)
         self.modelName.setFont(QFont("Arial", 11, QFont.Bold))
         # model type
         self.modelTypeLabel = QLabel('Type:' + self.MLModel.modelType, self)
-        self.modelTypeLabel.setFont(QFont("Arial", 11, QFont.Bold))
+        self.modelTypeLabel.setFont(QFont("Arial", 11, QFont.Times))
         # model describe
         self.modelDescribeLabel = QLabel("Describe:")
         # local eval
-        self.evalMetric = self.MLModel.metric
-        self.evalScore = self.MLModel.localScore
+        self.evalMetric = QLabel((self.MLModel.metric if self.MLModel.metric is not '' else 'Default Metric') + ': ',
+                                 self)
+        self.evalScore = QLabel(str(self.MLModel.localScore))
         # data set
-        self.trainSet = QLabel('trainSet: ' + self.MLModel.trainSet, self)
-        self.testSet = QLabel('testSet: ' + self.MLModel.testSet, self)
+        self.trainSet = QLabel('trainSet: ' + os.path.basename(self.MLModel.trainSet), self)
+        self.testSet = QLabel('testSet: ' + os.path.basename(self.MLModel.testSet), self)
 
         # LB eval score
         self.leaderBoardLabel = QLabel("LB: ")
@@ -57,8 +58,7 @@ class ModelWidget(QWidget):
         self.mainLayout.addWidget(self.modelName, 0, 0, Qt.AlignTop)
         self.mainLayout.addWidget(self.modelTypeLabel, 1, 0, Qt.AlignTop)
         # local cv item
-        evalLayout = self.createNewHLayout(QLabel(self.evalMetric + ': ', self), QLabel(str(self.evalScore), self),
-                                           self.labelFont)
+        evalLayout = self.createNewHLayout(self.evalMetric, self.evalScore, self.labelFont)
         self.mainLayout.addLayout(evalLayout, 2, 0)
         # LB item
         LBLayout = self.createNewHLayout(self.leaderBoardLabel, self.LBScore, self.labelFont)
@@ -767,13 +767,13 @@ class testDialog(QDialog):
         self.mainLayout.addWidget(qml)
         r = qml.rootObject()
         for i in range(20):
-            r.testPrint('test1name', 'alg_xgb','param_asdf')
+            r.testPrint('test1name', 'alg_xgb', 'param_asdf')
         pass
-
 
 
 class queueTabWidget(QQuickWidget):
     chartCleared = pyqtSignal()
+
     def __init__(self, parent=None):
         super(queueTabWidget, self).__init__(parent=parent)
         self.setSource(QUrl.fromLocalFile('queueTab.qml'))

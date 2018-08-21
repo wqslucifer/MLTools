@@ -780,6 +780,8 @@ class IpythonWebView(QWebEngineView):
 class ModelTabWidget(QWidget):
     from model import ml_model
     from project import ml_project
+    update = pyqtSignal()
+
     def __init__(self, MLModel: ml_model, MLProject: ml_project, parent=None):
         super(ModelTabWidget, self).__init__(parent=parent)
         self.MLProject = MLProject
@@ -792,7 +794,7 @@ class ModelTabWidget(QWidget):
         self.statusLayout = QGridLayout(self)
         self.runButton = QPushButton('Run', self)
         self.stopButton = QPushButton('Stop', self)
-        self.addButton = QPushButton('Add', self)
+        self.addButton = QPushButton('Add to queue', self)
 
         self.settingLayout = QHBoxLayout(self)
         self.modelInfo = QGroupBox(self)
@@ -804,10 +806,13 @@ class ModelTabWidget(QWidget):
         self.modelDataScroll = QScrollArea(self)
 
         self.modelInfoLayout = QFormLayout(self)
-        # self.modelParamLayout = QFormLayout(self)
+        self.modelParamStack = QStackedWidget(self)
         self.modelXGBParamLayout = QFormLayout(self)
         self.modelLGBMParamLayout = QFormLayout(self)
         self.modelDataLayout = QFormLayout(self)
+
+        self.trainSet = QLabel(self)
+        self.testSet = QLabel(self)
         # local
         self.metric = QComboBox(self)
         self.xgb_metric = ['rmse', 'auc', 'logloss', 'error']
@@ -830,6 +835,7 @@ class ModelTabWidget(QWidget):
         self.initData()
         self.infoQueue = Queue(10)
 
+
     def initUI(self):
         self.setLayout(self.outLayout)
         self.outLayout.addWidget(self.statusFrame)
@@ -837,10 +843,19 @@ class ModelTabWidget(QWidget):
         self.outLayout.setStretch(0, 1)
         self.outLayout.setStretch(1, 4)
         self.statusFrame.setLayout(self.statusLayout)
-        self.statusLayout.addWidget(QLabel('Model Name'), 0, 0)
-        self.statusLayout.addWidget(self.runButton, 0, 5)
-        self.statusLayout.addWidget(self.stopButton, 1, 5)
-        self.statusLayout.addWidget(self.addButton, 2, 5)
+        self.statusLayout.addWidget(QLabel('Model Name: ' + self.MLModel.modelName), 0, 0)
+        self.statusLayout.addWidget(QLabel('Model Status:'), 1, 0)
+        self.statusLayout.addWidget(QLabel('Data: '), 0, 1)
+        self.statusLayout.addWidget(self.trainSet, 1, 1)
+        self.statusLayout.addWidget(self.testSet, 1, 2)
+        self.statusLayout.addWidget(self.runButton, 0, 3)
+        self.statusLayout.addWidget(self.stopButton, 1, 3)
+        self.statusLayout.addWidget(self.addButton, 2, 3)
+
+        self.statusLayout.setColumnStretch(0, 3)
+        self.statusLayout.setColumnStretch(1, 3)
+        self.statusLayout.setColumnStretch(2, 4)
+        self.statusLayout.setColumnStretch(3, 2)
 
         l = QHBoxLayout(self)
         l.addWidget(self.modelInfoScroll)
@@ -855,7 +870,6 @@ class ModelTabWidget(QWidget):
         l.addWidget(self.modelParamScroll)
         self.modelParam.setLayout(l)
         self.modelParamScroll.setWidgetResizable(True)
-        self.modelParamStack = QStackedWidget(self)
         self.initXGBParam()
         self.initLGBMParam()
         t = QWidget(self)
@@ -885,6 +899,8 @@ class ModelTabWidget(QWidget):
         self.modelData.setTitle('Data')
 
         self.runButton.clicked.connect(self.runModel)
+        self.stopButton.clicked.connect(self.stopModel)
+        self.addButton.clicked.connect(self.add2Queue)
 
     def initModelInfo(self):
         self.modelInfoLayout.setContentsMargins(15, 20, 15, 10)
@@ -1141,19 +1157,19 @@ class ModelTabWidget(QWidget):
 
     def initData(self):
         self.modelDataLayout.setContentsMargins(10, 20, 10, 10)
-        trainSet = QComboBox(self)
-        trainSet.addItems(self.MLProject.dataFiles_pkl)
-        trainSet.addItems(self.MLProject.dataFiles_csv)
-        self.modelDataLayout.addRow('Train: ', trainSet)
-        trainSet.setCurrentText(os.path.basename(self.MLModel.trainSet))
-        trainSet.currentTextChanged.connect(lambda: self.MLModel.setTrainSet(trainSet.currentText()))
+        trainSetCombo = QComboBox(self)
+        trainSetCombo.addItems(self.MLProject.dataFiles_pkl)
+        trainSetCombo.addItems(self.MLProject.dataFiles_csv)
+        self.modelDataLayout.addRow('Train: ', trainSetCombo)
+        trainSetCombo.setCurrentIndex(trainSetCombo.findText(self.MLModel.trainSet))
+        trainSetCombo.currentTextChanged.connect(lambda: self.MLModel.setTrainSet(trainSetCombo.currentText()))
 
-        testSet = QComboBox(self)
-        testSet.addItems(self.MLProject.dataFiles_pkl)
-        testSet.addItems(self.MLProject.dataFiles_csv)
-        self.modelDataLayout.addRow('Test: ', testSet)
-        testSet.setCurrentText(os.path.basename(self.MLModel.testSet))
-        testSet.currentTextChanged.connect(lambda: self.MLModel.setTestSet(testSet.currentText()))
+        testSetCombo = QComboBox(self)
+        testSetCombo.addItems(self.MLProject.dataFiles_pkl)
+        testSetCombo.addItems(self.MLProject.dataFiles_csv)
+        self.modelDataLayout.addRow('Test: ', testSetCombo)
+        testSetCombo.setCurrentIndex(testSetCombo.findText(self.MLModel.testSet))
+        testSetCombo.currentTextChanged.connect(lambda: self.MLModel.setTestSet(testSetCombo.currentText()))
         # load data button
         loadDataButton = QPushButton('Load data', self)
         self.modelDataLayout.addRow(loadDataButton)
@@ -1173,6 +1189,8 @@ class ModelTabWidget(QWidget):
         self.data_target.currentTextChanged.connect(lambda: self.MLModel.setTarget(self.data_target.currentText()))
         loadDataButton.clicked.connect(lambda: self.data_ID.setEnabled(True))
         loadDataButton.clicked.connect(lambda: self.data_target.setEnabled(True))
+        loadDataButton.clicked.connect(lambda: self.trainSet.setText(trainSetCombo.currentText()))
+        loadDataButton.clicked.connect(lambda: self.testSet.setText(testSetCombo.currentText()))
         self.outputEditor = QTextEdit(self)
         self.modelDataLayout.addRow('', self.outputEditor)
 
@@ -1203,6 +1221,7 @@ class ModelTabWidget(QWidget):
             self.metric.addItems(self.sklearn_regression_metric + self.sklearn_classification_metric)
 
     def runModel(self):
+        self.update.emit()
         model = None
         if self.MLModel.modelType == 'XGB':
             model = xgbModel(self.infoQueue, self.MLModel, 2000, kFold=5)
@@ -1215,11 +1234,17 @@ class ModelTabWidget(QWidget):
         self.my_receiver.start()
 
     def stopModel(self):
-        pass
+        self.update.emit()
+
+    def add2Queue(self):
+        self.update.emit()
 
     def append_text(self, text):
         self.outputEditor.moveCursor(QTextCursor.End)
         self.outputEditor.insertPlainText(text)
+
+    def closeEvent(self, QCloseEvent):
+        self.update.emit()
 
 
 class testDialog(QDialog):

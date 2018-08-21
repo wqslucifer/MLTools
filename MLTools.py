@@ -259,7 +259,6 @@ class MainFrame(QMainWindow):
                 mw = ModelWidget(d)
                 mw.triggered.connect(self.addModelTab)
                 self.startTabLayout.addWidget(mw)
-
         if self.MLProject.resultFiles:
             for d in self.MLProject.resultFiles:
                 rw = ResultWidget(d)
@@ -267,10 +266,20 @@ class MainFrame(QMainWindow):
                 self.startTabLayout.addWidget(rw)
 
     def addModelTab(self, MLModel: ml_model):
+        parentSender = self.sender()
         modelTab = ModelTabWidget(MLModel, self.MLProject, self)
         self.tabWindow.addTab(modelTab, MLModel.modelName)
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(modelTab))
         self.tabList.append(modelTab)
+        modelTab.update.connect(lambda: self.updateModelTab(parentSender, modelTab))
+
+    def updateModelTab(self, parent: ModelWidget, modelTab: ModelTabWidget):
+        parent.modelTypeLabel.setText(modelTab.MLModel.modelType)
+        parent.evalMetric.setText(
+            (modelTab.MLModel.metric if modelTab.MLModel.metric is not '' else 'Default Metric') + ': ')
+        parent.evalScore.setText(str(modelTab.MLModel.localScore))
+        parent.trainSet.setText(os.path.basename(modelTab.MLModel.trainSet))
+        parent.testSet.setText(os.path.basename(modelTab.MLModel.testSet))
 
     def addDataTab(self, dataFile):
         scrollarea = QScrollArea(self)
