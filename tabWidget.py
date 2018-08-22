@@ -60,6 +60,10 @@ class DataTabWidget(QWidget):
         self.verticalHeaderWidth = 70
         self.displayRows = 2
         self.displayCols = 7
+
+        self.displaySize = 3
+        self.displayWidth = self.displaySize
+        self.displayHeight = self.displaySize
         # init widgets
         self.mainLayout = QGridLayout(self)
         self.rightLayout = QVBoxLayout(self)
@@ -118,7 +122,7 @@ class DataTabWidget(QWidget):
             meta.columns = ['index', 'meta']
 
         # create plot
-        fig = Figure(figsize=(5, 4))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -160,7 +164,7 @@ class DataTabWidget(QWidget):
         X = self.dataFrame.index.tolist()
         Y = self.dataFrame.iloc[:, index.column()]
         # create plot
-        fig = Figure(figsize=(5, 4))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -202,7 +206,7 @@ class DataTabWidget(QWidget):
 
         X = self.dataFrame.iloc[:, index.column()]
         # create plot
-        fig = Figure(figsize=(5, 4))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -248,7 +252,7 @@ class DataTabWidget(QWidget):
             X = self.dataFrame.index.tolist()
             Y = self.dataFrame.iloc[:, index.column()]
         # create plot
-        fig = Figure(figsize=(5, 4))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -290,7 +294,7 @@ class DataTabWidget(QWidget):
         X = self.dataFrame.iloc[:, index.column()]
         X = X.fillna('NAN')
         # create plot
-        fig = Figure(figsize=(6, 5))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -333,7 +337,7 @@ class DataTabWidget(QWidget):
 
         X = na_columns
         # create plot
-        fig = Figure(figsize=(6, 6))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -343,7 +347,7 @@ class DataTabWidget(QWidget):
         # plot
         if len(X):
             Y1 = np.sum(self.dataFrame[X].isnull())
-            Y2 = Y1 * 0 + self.dataFrame.shape[0]
+            Y2 = self.dataFrame.shape[0]
             sns.set_color_codes("pastel")
             sns.barplot(x=Y2, y=X, ax=ax, color="b")
             sns.set_color_codes("muted")
@@ -382,7 +386,7 @@ class DataTabWidget(QWidget):
 
         X = self.dataFrame.iloc[:, index.column()]
         # create plot
-        fig = Figure(figsize=(4, 4))
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -395,6 +399,58 @@ class DataTabWidget(QWidget):
         ax.set_ylabel('count')
         # set title
         ax.set_title('count: ' + self.dataFrame.columns[index.column()])
+        # clean coord info on tool bar
+        ax.format_coord = lambda x, y: ""
+        # set tool bar
+        toolbar = NavigationToolbar(canvas, self)
+        canvas.draw()
+
+        # add toolbar
+        tmp = QWidget(self)
+        tmp.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        self.plotLayout.addWidget(tmp)
+        self.mainTab.setCurrentIndex(1)
+        self.plotLayout.update()
+
+    def countNAPlot(self, point: QPoint):
+        layout = QVBoxLayout(self)
+        index = self.dataExplorer.indexAt(point)
+
+        X = np.sum(self.dataFrame.iloc[:, index.column()].isnull())
+        pNA = float(X * 100.0 / self.dataFrame.shape[0])
+
+        # create plot
+        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
+        fig.set_tight_layout(True)
+        canvas = FigureCanvas(fig)
+        ax = fig.subplots()
+        # set color
+        sns.set(palette="muted", color_codes=True)
+        sns.set(style="whitegrid")
+        # plot data
+        p1 = sns.barplot(x=[self.dataFrame.columns[index.column()]], y=self.dataFrame.shape[0], hue=['Total'], ax=ax,
+                         palette=sns.color_palette(["#4c72b0"]))
+        bar = p1.patches[0]
+        centre = bar.get_x() + bar.get_width() / 2.
+        bar.set_x(centre - 0.2)
+        bar.set_width(0.4)
+        p1.text(bar.get_x() + bar.get_width() / 2 - 0.1, bar.get_height(), '%.2f%%' % pNA)
+        p1.axes.legend(loc='best')
+
+        p2 = sns.barplot(x=[self.dataFrame.columns[index.column()]], y=X, ax=ax, hue=['NA'],
+                         palette=sns.color_palette(["#c44e52"]))
+        bar = p2.patches[1]
+        centre = bar.get_x() + bar.get_width() / 2.
+        bar.set_x(centre - 0.2)
+        bar.set_width(0.4)
+
+        ax.set_xlabel('column')
+        ax.set_ylabel('count')
+        # set title
+        ax.set_title('count NA: ' + self.dataFrame.columns[index.column()])
         # clean coord info on tool bar
         ax.format_coord = lambda x, y: ""
         # set tool bar
@@ -626,8 +682,12 @@ class DataTabWidget(QWidget):
         self.dataExplorerPopMenu.addMenu(categoryMenu)
 
         # test action
+        o1 = QAction('column NA plot', self)
+        o1.triggered.connect(lambda: self.countNAPlot(point))
+        self.dataExplorerPopMenu.addAction(o1)
+
         test = QAction('test plot', self)
-        test.triggered.connect(lambda: self.boxPlot(point))
+        test.triggered.connect(lambda: self.countNAPlot(point))
         self.dataExplorerPopMenu.addAction(test)
         # pop menu
         self.dataExplorerPopMenu.exec(QCursor.pos())
@@ -834,7 +894,6 @@ class ModelTabWidget(QWidget):
         self.initModelInfo()
         self.initData()
         self.infoQueue = Queue(10)
-
 
     def initUI(self):
         self.setLayout(self.outLayout)
