@@ -65,6 +65,8 @@ class DataTabWidget(QWidget):
         self.displayWidth = self.displaySize
         self.displayHeight = self.displaySize
         # init widgets
+        self.splitterMain = QSplitter(Qt.Vertical)
+
         self.mainLayout = QGridLayout(self)
         self.rightLayout = QVBoxLayout(self)
         self.toolset = QToolBox(self)
@@ -81,7 +83,7 @@ class DataTabWidget(QWidget):
         self.statistic = QTableWidget(self)
 
         self.mainTab = QTabWidget(self)
-        self.outputTab = QTabWidget(self)
+        self.outputTab = CollapsibleTabWidget(self)
         self.outputEdit = QTextEdit(self)
         # init UI
         self.initUI()
@@ -98,7 +100,11 @@ class DataTabWidget(QWidget):
         plotWidget.setLayout(self.plotLayout)
         scrollArea.setWidget(plotWidget)
         self.mainTab.addTab(scrollArea, 'plot')
+        self.mainTab.setMaximumHeight(10000)
+        self.mainTab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.mainTab.updateGeometry()
+
+        # self.outputTab.doCollapse.connect(lambda : self.splitterMain.moveSplitter(10000,1))
 
     def regressionPlot(self, point: QPoint):
         """
@@ -485,14 +491,20 @@ class DataTabWidget(QWidget):
         # init output window
         self.outputTab.addTab(self.outputEdit, 'Output')
         # init right lay out
-        self.rightLayout.addWidget(self.mainTab)
-        self.rightLayout.addWidget(self.outputTab)
-        self.rightLayout.setStretch(0, 10)
-        self.rightLayout.setStretch(1, 3)
+        self.rightLayout.addWidget(self.splitterMain)
+        self.splitterMain.addWidget(self.mainTab)
+        self.splitterMain.addWidget(self.outputTab)
+        self.splitterMain.setStretchFactor(0, 10)
+        self.splitterMain.setStretchFactor(1, 3)
+        self.splitterMain.setCollapsible(0, False)
+        self.splitterMain.setCollapsible(1, False)
+
         self.mainLayout.addWidget(self.toolset, 0, 0)
         self.mainLayout.addLayout(self.rightLayout, 0, 1)
         self.mainLayout.setColumnStretch(0, 2)
         self.mainLayout.setColumnStretch(1, 10)
+
+        self.outputTab.setSplitter(self.splitterMain)
 
     def highLightSetting(self):
         layout = QVBoxLayout(self)
@@ -692,6 +704,17 @@ class DataTabWidget(QWidget):
         # pop menu
         self.dataExplorerPopMenu.exec(QCursor.pos())
 
+    def updateSplitter(self):
+        if not self.outputTab.splitterLower:
+            upper, lower = self.splitterMain.sizes()
+            height = upper+lower
+            self.splitterMain.setSizes([height*3, height*1])
+        elif self.outputTab.stackWidget.isVisible():
+            upper, lower = self.splitterMain.sizes()
+            height = upper+lower
+            self.splitterMain.setSizes([height-self.outputTab.splitterLower, self.outputTab.splitterLower])
+        else:
+            self.splitterMain.setSizes([10000, 0])
 
 class NavigationToolbar(NavigationToolbar2QT):
     def __init__(self, *args, **kwargs):

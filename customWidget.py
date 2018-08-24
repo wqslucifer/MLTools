@@ -3,7 +3,7 @@ import sys
 import time
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
-    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem
+    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
     QModelIndex, QAbstractItemModel, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
@@ -560,6 +560,9 @@ class CollapsibleTabWidget(QWidget):
         self.tabBarWidget = QWidget(self)
         self.orientation = self.Horizontal
         # self.orientation = self.Vertical
+        self.splitter = None
+        self.splitterPos = None
+        self.splitterLower = None
         self.stackTitle = None
         self.stackWidget = None
         self.tabBarList = []
@@ -575,8 +578,6 @@ class CollapsibleTabWidget(QWidget):
         self.tabBarWidget.setStyleSheet('background-color: #B2B2B2;')
         self.stackTitle.setStyleSheet('background-color: #B2B2B2;')
         self.tabBarWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-        self.stackTitle.hide()
-        self.stackWidget.hide()
 
     def initHorizontalUI(self):
         self.frameLayout = QVBoxLayout(self)
@@ -616,7 +617,7 @@ class CollapsibleTabWidget(QWidget):
     def onTabClicked(self, index):
         pass
 
-    def addTab(self, title, widget: QWidget):
+    def addTab(self, widget: QWidget, title:str):
         titleBar = TitleBar(title, self)
         titleBar.setButtonOrient(self.titleBarIcon)
         titleBar.CollapseButton.clicked.connect(self.collapseStacks)
@@ -634,16 +635,28 @@ class CollapsibleTabWidget(QWidget):
 
     def collapseStacks(self):
         if self.stackWidget.isVisible():
+            self.splitterPos = self.splitter.sizes()
             self.stackTitle.hide()
             self.stackWidget.hide()
+            self.splitter.setSizes([10000, 0])
+            self.splitter.handle(1).setDisabled(True)
         else:
+            self.splitter.setSizes(self.splitterPos)
             self.stackTitle.show()
             self.stackWidget.show()
+            self.splitter.handle(1).setDisabled(False)
         self.doCollapse.emit()
 
     def setCurStack(self, index):
         self.stackTitle.setCurrentIndex(index)
         self.stackWidget.setCurrentIndex(index)
+
+    def setSplitter(self, splitter: QSplitter):
+        self.splitter = splitter
+        self.splitter.splitterMoved.connect(self.setSplitterRate)
+
+    def setSplitterRate(self, pos, index):
+        self.splitterLower = self.splitter.sizes()[1]
 
 
 class customPushButton(QPushButton):
@@ -759,10 +772,6 @@ class testDialog(QDialog):
         self.mainLayout = QVBoxLayout(self)
         self.setFixedSize(800, 500)
         self.setLayout(self.mainLayout)
-        # qml = QQuickView()
-        # qml.setSource(QUrl('queueTab.qml'))
-        # qml.setResizeMode(QQuickView.SizeRootObjectToView)
-        # qml = QWidget.createWindowContainer(qml)
         qml = queueTabWidget(self)
         self.mainLayout.addWidget(qml)
         r = qml.rootObject()

@@ -17,7 +17,7 @@ from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtQuick import QQuickView
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, QEvent
 
 from SwitchButton import switchButton
 from model import ml_model
@@ -31,6 +31,7 @@ GENERAL.init()
 
 class MainFrame(QMainWindow):
     subprocessEnd = pyqtSignal()
+    updateDataTab = pyqtSignal()
 
     def __init__(self, parent=None):
         super(MainFrame, self).__init__(parent)
@@ -290,6 +291,7 @@ class MainFrame(QMainWindow):
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
         dw = DataTabWidget(dataFile)
+        self.updateDataTab.connect(dw.updateSplitter)
         self.tabList.append(dw)
         scrollarea.setWidget(dw)
         scrollarea.setVerticalScrollBar(scrollbar)
@@ -496,6 +498,11 @@ class MainFrame(QMainWindow):
             del self.tabList[0]
             # self.tabList.remove(self.tabList[0])
             self.initProjectTab()
+
+    def changeEvent(self, event: QEvent):
+        if event.type() ==  QEvent.WindowStateChange:
+            if self.windowState() == Qt.WindowMaximized:
+                self.updateDataTab.emit()
 
 
 class createModelDialog(QDialog):
