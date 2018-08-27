@@ -74,7 +74,11 @@ class DataTabWidget(QWidget):
         self.tools_dataInfo = QWidget(self)
         self.tools_process = QWidget(self)
         self.tools_visualize = QWidget(self)
+        # highlight tools
+        self.NA_Threshold = 80
+        self.NAThresholdChanged = []
 
+        # main window
         self.dataWindow = QWidget(self)
         self.dataWindowLayout = QVBoxLayout(self)
         self.dataExplorer = QTableView(self)
@@ -343,7 +347,7 @@ class DataTabWidget(QWidget):
 
         X = na_columns
         # create plot
-        fig = Figure(figsize=(self.displayWidth, self.displayHeight))
+        fig = Figure(figsize=(self.displayWidth+2, self.displayHeight+2))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -355,7 +359,7 @@ class DataTabWidget(QWidget):
             Y1 = np.sum(self.dataFrame[X].isnull())
             Y2 = self.dataFrame.shape[0]
             sns.set_color_codes("pastel")
-            sns.barplot(x=Y2, y=X, ax=ax, color="b")
+            sns.barplot(x=[Y2 for _ in X], y=X, ax=ax, color="b")
             sns.set_color_codes("muted")
             plot = sns.barplot(x=Y1, y=X, ax=ax, color="r")
             labels = ax.get_xticks()
@@ -364,7 +368,7 @@ class DataTabWidget(QWidget):
             plot.set_yticklabels(labels, rotation=50)
 
             sns.set_palette(sns.cubehelix_palette(8))
-            ax.axvline(self.dataFrame.shape[0] * 0.8, color='#856798', clip_on=False)
+            ax.axvline(self.dataFrame.shape[0] * self.NA_Threshold / 100.0, color='#856798', clip_on=False)
 
         ax.set_xlabel('count')
         ax.set_ylabel(os.path.basename(self.filename))
@@ -510,12 +514,12 @@ class DataTabWidget(QWidget):
         layout = QVBoxLayout(self)
         self.tools_highLight.setLayout(layout)
         # init object
-        NA_Threshold = 0
-        NA_ThresholdEdit = QDoubleSpinBox(self)
-        NA_ThresholdEdit.setSingleStep(5.0)
-        NA_ThresholdEdit.setValue(NA_Threshold)
+        NA_ThresholdEdit = QSpinBox(self)
+        NA_ThresholdEdit.setSingleStep(5)
+        NA_ThresholdEdit.setValue(self.NA_Threshold)
         NA_ThresholdEdit.setSuffix('%')
-        NA_ThresholdEdit.setMaximumSize(85, 25)
+        NA_ThresholdEdit.setMaximumSize(95, 25)
+        NA_ThresholdEdit.valueChanged.connect(self.setNA_Threshold)
         NA_ThresholdLayout = QHBoxLayout(self)
         NA_ThresholdLayout.addWidget(QLabel('NA %: '))
         NA_ThresholdLayout.addWidget(NA_ThresholdEdit)
@@ -533,11 +537,19 @@ class DataTabWidget(QWidget):
         switchLayout.addWidget(QLabel('NA'))
         switchLayout.addWidget(switch)
         switch.toggled.connect(self.onSwitchToggled)
+        # highlight over threshold NA
+        overNAThreshold = switchButton()
+        overNAThresholdLayout = QHBoxLayout(self)
+        overNAThresholdLayout.addWidget(QLabel('highlight NA'))
+        overNAThresholdLayout.addWidget(overNAThreshold)
+        overNAThreshold.toggled.connect(self.onOverNAThresholdToggled)
+
         resetButton = QPushButton('reset', self)
         # add object
         layout.addLayout(NA_ThresholdLayout, 3)
         layout.addWidget(line, 3)
-        layout.addLayout(switchLayout, 20)
+        layout.addLayout(switchLayout, 3)
+        layout.addLayout(overNAThresholdLayout, 20)
         layout.addWidget(resetButton, 3, Qt.AlignBottom)
 
     def initToolDataInfo(self):
@@ -575,7 +587,7 @@ class DataTabWidget(QWidget):
         self.statistic.insertRow(rowCount)
         for i, c in enumerate(self.dataFrame.columns):
             self.statistic.setItem(rowCount, i,
-                                   QTableWidgetItem(str(np.sum(self.dataFrame[c].isnull()) / self.dataFrame.shape[0])))
+                                   QTableWidgetItem('%.2f%%'% (np.sum(self.dataFrame[c].isnull())*100 / self.dataFrame.shape[0])))
         rowCount += 1
         # mean
         self.statistic.insertRow(rowCount)
@@ -631,6 +643,23 @@ class DataTabWidget(QWidget):
 
     def onSwitchToggled(self, checked):
         print(checked)
+
+    def setNA_Threshold(self, value):
+        self.NA_Threshold = value
+
+    def onOverNAThresholdToggled(self, checked):
+        if checked:
+            for col in range(len(self.dataFrame.columns)):
+                tmp = self.statistic.item(2, col).text()
+                if int(float(tmp[:-1])) > self.NA_Threshold:
+                    self.statistic.item(1, col).setBackground(Qt.red)
+                    self.statistic.item(2, col).setBackground(Qt.red)
+                    self.NAThresholdChanged.append(col)
+        else:
+            for col in self.NAThresholdChanged:
+                self.statistic.item(1, col).setBackground(Qt.transparent)
+                self.statistic.item(2, col).setBackground(Qt.transparent)
+            self.NAThresholdChanged.clear()
 
     def closeEvent(self, QCloseEvent):
         del self.dataFrame
