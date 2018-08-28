@@ -18,6 +18,7 @@ class ml_project:
 
         self.modelFiles = list() # *.md
         self.scriptFiles = list()  # python or jupyter notebook script list
+        self.imageDirs = list()
         self.pythonScripts = list()
         self.resultFiles = list()  # running result files list
         self.logFiles = list()  # log files for each run
@@ -81,6 +82,7 @@ class ml_project:
             newProject.description = projectDict['description']
             newProject.modelFiles = projectDict['modelFiles']
             newProject.scriptFiles = projectDict['scriptFiles']
+            newProject.imageDirs = projectDict['imageDirs']
             newProject.resultFiles = projectDict['resultFiles']
             newProject.logFiles = projectDict['logFiles']
             newProject.dataFiles_csv = projectDict['dataFiles_csv']
@@ -96,6 +98,7 @@ class ml_project:
         projectDict['description'] = self.description
         projectDict['modelFiles'] = self.modelFiles
         projectDict['scriptFiles'] = self.scriptFiles
+        projectDict['imageDirs'] = self.imageDirs
         projectDict['resultFiles'] = self.resultFiles
         projectDict['logFiles'] = self.logFiles
         projectDict['dataFiles_csv'] = self.dataFiles_csv

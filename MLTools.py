@@ -12,7 +12,7 @@ from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
-    HistoryWidget, queueTabWidget
+    HistoryWidget, queueTabWidget, ImageDataWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
@@ -265,6 +265,12 @@ class MainFrame(QMainWindow):
                 rw = ResultWidget(d)
                 rw.triggered.connect(self.addResultTab)
                 self.startTabLayout.addWidget(rw)
+        if self.MLProject.imageDirs:
+            for d in self.MLProject.imageDirs:
+                imageType, imageCount = self.checkImageInfo(d)
+                iw = ImageDataWidget(imageType,imageCount, d)
+                iw.triggered.connect(self.addImageDataTab)
+                self.startTabLayout.addWidget(iw)
 
     def addModelTab(self, MLModel: ml_model):
         parentSender = self.sender()
@@ -287,7 +293,7 @@ class MainFrame(QMainWindow):
         scrollarea.setWidgetResizable(True)
         scrollbar = QScrollBar(self)
         # add scroll area to tab window
-        self.tabWindow.addTab(scrollarea, os.path.basename(dataFile))
+        self.tabWindow.addTab(scrollarea, 'Data: '+os.path.basename(dataFile))
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
         dw = DataTabWidget(dataFile)
@@ -318,6 +324,26 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
+    def addImageDataTab(self, imageDir: str):
+        print(imageDir)
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        # add scroll area to tab window
+        self.tabWindow.addTab(scrollarea, 'Image:'+os.path.basename(imageDir))
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
+
+        imageDataTab = QWidget(self)
+        imageDataLayout = FlowLayout()
+        # add things to layout
+
+
+        imageDataTab.setLayout(imageDataLayout)
+        scrollarea.setWidget(imageDataTab)
+        self.tabList.append(imageDataTab)
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
     def addResultTab(self, resultFile: str):
         scrollarea = QScrollArea(self)
         scrollarea.setWidgetResizable(True)
@@ -325,14 +351,10 @@ class MainFrame(QMainWindow):
         # add scroll area to tab window
         self.tabWindow.addTab(scrollarea, os.path.basename(resultFile))
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
-        # add tab detail widget to scroll area
-        # qml = QQuickView()
-        # qml.setSource(QUrl('queueTab.qml'))
-        # qml.setResizeMode(QQuickView.SizeRootObjectToView)
-        # resultTab = QWidget.createWindowContainer(qml)
-        # scrollarea.setWidget(resultTab)
-        # self.tabList.append(resultTab)
 
+        resultTab = QWidget(self)
+        scrollarea.setWidget(resultTab)
+        self.tabList.append(resultTab)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -504,6 +526,12 @@ class MainFrame(QMainWindow):
             if self.windowState() == Qt.WindowMaximized:
                 self.updateDataTab.emit()
 
+    def checkImageInfo(self, imageDir):
+        imageFiles = os.listdir(imageDir)
+        imageCount = len(imageFiles)
+        if imageCount:
+            imageType = imageFiles[0].split('.')[1]
+        return imageType, imageCount
 
 class createModelDialog(QDialog):
     def __init__(self, MLProject: ml_project):
@@ -729,7 +757,16 @@ class AddFileDialog(QDialog):
         self.addResultLayout.addWidget(self.addResultEdit)
         self.addResultLayout.addWidget(self.addResultButton)
         self.addResultButton.clicked.connect(self.addResultDialog)
-        # add log
+        # add images
+        self.addImageLayout = QHBoxLayout(self)
+        self.addImageLayout.addWidget(QLabel("Image: "))
+        self.addImageLayout.addSpacing(20)
+        self.addImageEdit = QLineEdit(self)
+        self.addImageButton = QPushButton("Browse", self)
+        self.addImageLayout.addWidget(self.addImageEdit)
+        self.addImageLayout.addWidget(self.addImageButton)
+        self.addImageButton.clicked.connect(self.addImageDialog)
+
         # Ok button
         self.buttonBoxLayout = QHBoxLayout(self)
         self.okButton = QPushButton('Ok', self)
@@ -749,12 +786,14 @@ class AddFileDialog(QDialog):
         self.mainLayout.addLayout(self.addModelLayout, 1, 0)
         self.mainLayout.addLayout(self.addScriptLayout, 2, 0)
         self.mainLayout.addLayout(self.addResultLayout, 3, 0)
-        self.mainLayout.addLayout(self.buttonBoxLayout, 4, 0, Qt.AlignBottom)
+        self.mainLayout.addLayout(self.addImageLayout, 4, 0)
+        self.mainLayout.addLayout(self.buttonBoxLayout, 5, 0, Qt.AlignBottom)
         self.mainLayout.setRowStretch(0, 3)
         self.mainLayout.setRowStretch(1, 3)
         self.mainLayout.setRowStretch(2, 3)
         self.mainLayout.setRowStretch(3, 3)
-        self.mainLayout.setRowStretch(4, 10)
+        self.mainLayout.setRowStretch(4, 3)
+        self.mainLayout.setRowStretch(5, 10)
 
         self.okButton.clicked.connect(self.confirm)
         self.cancelButton.clicked.connect(self.cancel)
@@ -763,6 +802,7 @@ class AddFileDialog(QDialog):
         self.modelFiles = None
         self.scriptFiles = None
         self.resultFiles = None
+        self.imageDir = None
 
     def addDataDialog(self):
         if not self.MLProject:
@@ -847,6 +887,22 @@ class AddFileDialog(QDialog):
         s = s[:-1]
         self.addResultEdit.setText(s)
 
+    def addImageDialog(self):
+        if not self.MLProject:
+            QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
+            return
+        dialog = QFileDialog(self)
+        options = QFileDialog.Options()
+        options |= QFileDialog.ShowDirsOnly
+        options |= QFileDialog.DontUseNativeDialog
+        if os.path.exists(os.path.join(self.MLProject.projectDir, 'data')):
+            dialog.setDirectory(os.path.join(self.MLProject.projectDir, 'data'))
+        else:
+            dialog.setDirectory(self.MLProject.projectDir)
+        imageDir = dialog.getExistingDirectory(self, "Open Image Dir", options=options)
+        self.addImageEdit.setText(imageDir)
+        self.imageDir = imageDir
+
     def confirm(self):
         if self.dataFiles:
             for file in self.dataFiles:
@@ -866,6 +922,9 @@ class AddFileDialog(QDialog):
             for file in self.resultFiles and os.path.abspath(file) not in self.MLProject.resultFiles:
                 if file not in self.MLProject.resultFiles:
                     self.MLProject.resultFiles.append(os.path.abspath(file))
+
+        if self.imageDir and os.path.abspath(self.imageDir) not in self.MLProject.imageDirs:
+            self.MLProject.imageDirs.append(os.path.abspath(self.imageDir))
 
         self.done(QDialog.Accepted)
         self.MLProject.dumpProject(self.MLProject.projectFile)

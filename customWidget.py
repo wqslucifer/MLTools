@@ -237,6 +237,93 @@ class DataWidget(QWidget):
         return newLayout
 
 
+class ImageDataWidget(QWidget):
+    # signal
+    triggered = pyqtSignal(str)
+
+    def __init__(self, dataType, imageCount, ImageDir, parent=None):
+        super(ImageDataWidget, self).__init__(parent=parent)
+        self.setFixedSize(180, 180)
+        self.mainLayout = QGridLayout(self)
+        self.edge = None
+        self.labelFont = QFont("Arial", 10, QFont.Bold)
+        self.bgColor = None
+        self.normColor = None
+        self.enterColor = None
+        self.pressColor = None
+        self.imageColorSet = {'normColor': '#AFFFAA', 'enterColor': '#67F95E', 'pressColor': '#5EDC56'}
+        # Data type
+        self.ImageDir = ImageDir
+        self.ImageCount = QLabel(str(imageCount), self)
+        self.DataType = QLabel(dataType, self)
+        self.DataType.setFont(QFont("Arial", 9, QFont.Bold))
+        # Data File name
+        self.ImageDataDir = QLabel('Image Dir: '+os.path.basename(ImageDir))
+        self.ImageDataDir.setFont(QFont("Arial", 11, QFont.Bold))
+
+        self.initUI()
+
+    def initUI(self):
+        self.setAutoFillBackground(True)
+        self.setLayout(self.mainLayout)
+        self.mainLayout.setContentsMargins(18, 18, 0, 0)
+        self.mainLayout.addWidget(self.ImageDataDir, 0, 0, Qt.AlignTop)
+        self.mainLayout.addWidget(self.DataType, 1, 0)
+        count = self.createNewHLayout(QLabel('Count: '), self.ImageCount, QFont("Arial", 9, QFont.Times))
+        self.mainLayout.addLayout(count, 2, 0)
+        self.mainLayout.setRowStretch(3, 10)
+
+        # set color set
+        self.setColorSet(**self.imageColorSet)
+        self.bgColor = self.normColor
+        self.edge = QRectF(5, 5, 170, 170)
+        # bg translucent
+        self.setStyleSheet("background-color: rgba(0,0,0,0)")
+
+    def paintEvent(self, ev):
+        path = QPainterPath()
+        painter = QPainter(self)
+        painter.setPen(QPen(QColor(255, 0, 0, 127), 6))
+        painter.setRenderHint(QPainter.Antialiasing)
+        path.addRoundedRect(self.edge, 15, 15)
+        painter.drawPath(path)
+        painter.fillPath(path, self.bgColor)
+
+    def updateBgColor(self, color):
+        self.bgColor = color
+        self.update()
+
+    def enterEvent(self, QEvent):
+        self.updateBgColor(self.enterColor)
+
+    def leaveEvent(self, QEvent):
+        self.updateBgColor(self.normColor)
+
+    def mousePressEvent(self, MouseEvent: QMouseEvent):
+        self.updateBgColor(self.pressColor)
+
+    def mouseReleaseEvent(self, MouseEvent: QMouseEvent):
+        self.updateBgColor(self.enterColor)
+        if MouseEvent.button() == Qt.RightButton:
+            print('right click menu')
+        elif MouseEvent.button() == Qt.LeftButton:
+            self.triggered.emit(self.ImageDir)
+
+    def setColorSet(self, normColor, enterColor, pressColor):
+        self.normColor = QColor(normColor)
+        self.enterColor = QColor(enterColor)
+        self.pressColor = QColor(pressColor)
+
+    def createNewHLayout(self, label, value, font, color='0B73F7'):
+        newLayout = QHBoxLayout(self)
+        newLayout.addWidget(label)
+        newLayout.addWidget(value, Qt.AlignLeft)
+        label.setFont(font)
+        value.setFont(font)
+        value.setStyleSheet("color:#%s;" % color)
+        return newLayout
+
+
 class ScriptWidget(QWidget):
     # signal
     triggered = pyqtSignal(str)
