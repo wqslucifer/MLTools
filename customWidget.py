@@ -3,16 +3,17 @@ import sys
 import time
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
-    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter
+    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter, QStylePainter, QStyle, QStyleOptionButton
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
     QModelIndex, QAbstractItemModel, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
-    QMouseEvent, QStandardItemModel
+    QMouseEvent, QStandardItemModel, QPaintEvent
 
 from PyQt5.QtQuick import QQuickView, QQuickItem
 from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtCore import QUrl, pyqtSlot
 from PyQt5.QtGui import QGuiApplication
+from PyQt5 import QtGui
 
 from model import ml_model, modelResult
 
@@ -258,7 +259,7 @@ class ImageDataWidget(QWidget):
         self.DataType = QLabel(dataType, self)
         self.DataType.setFont(QFont("Arial", 9, QFont.Bold))
         # Data File name
-        self.ImageDataDir = QLabel('Image Dir: '+os.path.basename(ImageDir))
+        self.ImageDataDir = QLabel('Image Dir: ' + os.path.basename(ImageDir))
         self.ImageDataDir.setFont(QFont("Arial", 11, QFont.Bold))
 
         self.initUI()
@@ -584,6 +585,9 @@ class TitleBar(QWidget):
     right = 2
     down = 3
 
+    Horizontal = 0
+    Vertical = 1
+
     def __init__(self, title, parent=None):
         super(TitleBar, self).__init__(parent=parent)
         self.Title = QLabel(title, self)
@@ -592,6 +596,7 @@ class TitleBar(QWidget):
         self.currentOrient = self.left
         self.font = QFont('Arial', 12, QFont.Bold)
         self.CollapseButton = QPushButton(self.Icon, '', self)
+        self.mainLayout = None
         self.mainLayout = QHBoxLayout(self)
         self.mainLayout.addWidget(self.Title, 1, Qt.AlignLeft)
         self.mainLayout.addStretch(1)
@@ -639,13 +644,13 @@ class CollapsibleTabWidget(QWidget):
     Vertical = 1
     doCollapse = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, orientation=0, parent=None):
         super(CollapsibleTabWidget, self).__init__(parent=parent)
         self.frameLayout = None
         self.verticalLayout = None
         self.tabBar = None
         self.tabBarWidget = QWidget(self)
-        self.orientation = self.Horizontal
+        self.orientation = orientation
         # self.orientation = self.Vertical
         self.splitter = None
         self.splitterPos = None
@@ -664,7 +669,6 @@ class CollapsibleTabWidget(QWidget):
 
         self.tabBarWidget.setStyleSheet('background-color: #B2B2B2;')
         self.stackTitle.setStyleSheet('background-color: #B2B2B2;')
-        self.tabBarWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
 
     def initHorizontalUI(self):
         self.frameLayout = QVBoxLayout(self)
@@ -681,22 +685,28 @@ class CollapsibleTabWidget(QWidget):
         self.frameLayout.addLayout(self.verticalLayout)
         self.frameLayout.addWidget(self.tabBarWidget)
         self.setLayout(self.frameLayout)
+        self.tabBarWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
 
     def initVerticalUI(self):
         self.frameLayout = QHBoxLayout(self)
+        self.verticalLayout = QVBoxLayout(self)
+        # tab bar
         self.tabBar = QVBoxLayout(self)
         self.tabBarWidget.setLayout(self.tabBar)
         self.tabBar.setAlignment(Qt.AlignTop)
-        self.verticalLayout = QVBoxLayout(self)
         # fill stack
         self.stackTitle = QStackedWidget(self)
         self.stackWidget = QStackedWidget(self)
+
         self.verticalLayout.addWidget(self.stackTitle)
         self.verticalLayout.addWidget(self.stackWidget)
+
+        self.stackWidget.addWidget(QLabel('asdf', self))
         # finish
-        self.frameLayout.addLayout(self.tabBar)
         self.frameLayout.addWidget(self.tabBarWidget)
+        self.frameLayout.addLayout(self.verticalLayout)
         self.setLayout(self.frameLayout)
+        self.tabBarWidget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Expanding)
 
     def setOrientation(self, orient):
         self.orientation = orient
@@ -704,13 +714,13 @@ class CollapsibleTabWidget(QWidget):
     def onTabClicked(self, index):
         pass
 
-    def addTab(self, widget: QWidget, title:str):
+    def addTab(self, widget: QWidget, title: str):
         titleBar = TitleBar(title, self)
         titleBar.setButtonOrient(self.titleBarIcon)
         titleBar.CollapseButton.clicked.connect(self.collapseStacks)
         self.stackTitle.addWidget(titleBar)
         self.stackWidget.addWidget(widget)
-        tabButton = customPushButton(title, len(self.tabBarList), self)
+        tabButton = customPushButton(title, len(self.tabBarList), self.orientation, self)
         self.tabBarList.append(tabButton)
 
         tabButton.clicked.connect(self.collapseStacks)
@@ -725,7 +735,10 @@ class CollapsibleTabWidget(QWidget):
             self.splitterPos = self.splitter.sizes()
             self.stackTitle.hide()
             self.stackWidget.hide()
-            self.splitter.setSizes([10000, 0])
+            if self.orientation == self.Horizontal:
+                self.splitter.setSizes([10000, 0])
+            if self.orientation == self.Vertical:
+                self.splitter.setSizes([0, 10000])
             self.splitter.handle(1).setDisabled(True)
         else:
             self.splitter.setSizes(self.splitterPos)
@@ -748,15 +761,69 @@ class CollapsibleTabWidget(QWidget):
 
 class customPushButton(QPushButton):
     clicked_index = pyqtSignal(int)
+    Horizontal = 0
+    Vertical = 1
 
-    def __init__(self, label, index, parent=None):
+    def __init__(self, label, index, orientation=0, parent=None):
         super(customPushButton, self).__init__(parent=parent)
         self.setText(label)
         self.index = index
+        self.orientation = orientation
+        if orientation == self.Vertical:
+            self.setFixedWidth(25)
+        if orientation == self.Horizontal:
+            self.setFixedHeight(25)
 
     def mouseReleaseEvent(self, event):
         self.clicked_index.emit(self.index)
         QPushButton.mouseReleaseEvent(self, event)
+
+    def paintEvent(self, event: QPaintEvent):
+        painter = QStylePainter(self)
+        if self.orientation == self.Vertical:
+            painter.rotate(270)
+            painter.translate(-1 * self.height(), 0)
+        painter.drawControl(QStyle.CE_PushButton, self.getStyleOptions())
+
+    def minimumSizeHint(self):
+        size = super(customPushButton, self).minimumSizeHint()
+        if self.orientation == self.Vertical:
+            size.transpose()
+        return size
+
+    def sizeHint(self):
+        size = super(customPushButton, self).sizeHint()
+        if self.orientation == self.Vertical:
+            size.transpose()
+        return size
+
+    def getStyleOptions(self):
+        options = QStyleOptionButton()
+        options.initFrom(self)
+        size = options.rect.size()
+        if self.orientation == self.Vertical:
+            size.transpose()
+        options.rect.setSize(size)
+        options.features = QStyleOptionButton.None_
+        if self.isFlat():
+            options.features |= QStyleOptionButton.Flat
+        if self.menu():
+            options.features |= QStyleOptionButton.HasMenu
+        if self.autoDefault() or self.isDefault():
+            options.features |= QStyleOptionButton.AutoDefaultButton
+        if self.isDefault():
+            options.features |= QStyleOptionButton.DefaultButton
+        if self.isDown() or (self.menu() and self.menu().isVisible()):
+            options.state |= QStyle.State_Sunken
+        if self.isChecked():
+            options.state |= QStyle.State_On
+        if not self.isFlat() and not self.isDown():
+            options.state |= QStyle.State_Raised
+
+        options.text = self.text()
+        options.icon = self.icon()
+        options.iconSize = self.iconSize()
+        return options
 
 
 class HistoryWidget(QWidget):

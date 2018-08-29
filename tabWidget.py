@@ -51,6 +51,9 @@ def process_thread_pipe(process):
 
 
 class DataTabWidget(QWidget):
+    Horizontal = 0
+    Vertical = 1
+
     def __init__(self, filename):
         super(DataTabWidget, self).__init__()
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -87,7 +90,7 @@ class DataTabWidget(QWidget):
         self.statistic = QTableWidget(self)
 
         self.mainTab = QTabWidget(self)
-        self.outputTab = CollapsibleTabWidget(self)
+        self.outputTab = CollapsibleTabWidget(self.Horizontal, self)
         self.outputEdit = QTextEdit(self)
         # init UI
         self.initUI()
@@ -347,7 +350,7 @@ class DataTabWidget(QWidget):
 
         X = na_columns
         # create plot
-        fig = Figure(figsize=(self.displayWidth+2, self.displayHeight+2))
+        fig = Figure(figsize=(self.displayWidth + 2, self.displayHeight + 2))
         fig.set_tight_layout(True)
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
@@ -587,7 +590,8 @@ class DataTabWidget(QWidget):
         self.statistic.insertRow(rowCount)
         for i, c in enumerate(self.dataFrame.columns):
             self.statistic.setItem(rowCount, i,
-                                   QTableWidgetItem('%.2f%%'% (np.sum(self.dataFrame[c].isnull())*100 / self.dataFrame.shape[0])))
+                                   QTableWidgetItem(
+                                       '%.2f%%' % (np.sum(self.dataFrame[c].isnull()) * 100 / self.dataFrame.shape[0])))
         rowCount += 1
         # mean
         self.statistic.insertRow(rowCount)
@@ -736,14 +740,15 @@ class DataTabWidget(QWidget):
     def updateSplitter(self):
         if not self.outputTab.splitterLower:
             upper, lower = self.splitterMain.sizes()
-            height = upper+lower
-            self.splitterMain.setSizes([height*3, height*1])
+            height = upper + lower
+            self.splitterMain.setSizes([height * 3, height * 1])
         elif self.outputTab.stackWidget.isVisible():
             upper, lower = self.splitterMain.sizes()
-            height = upper+lower
-            self.splitterMain.setSizes([height-self.outputTab.splitterLower, self.outputTab.splitterLower])
+            height = upper + lower
+            self.splitterMain.setSizes([height - self.outputTab.splitterLower, self.outputTab.splitterLower])
         else:
             self.splitterMain.setSizes([10000, 0])
+
 
 class NavigationToolbar(NavigationToolbar2QT):
     def __init__(self, *args, **kwargs):
@@ -1356,6 +1361,39 @@ class ModelTabWidget(QWidget):
 
     def closeEvent(self, QCloseEvent):
         self.update.emit()
+
+
+class ImageDataTabWidget(QWidget):
+    Horizontal = 0
+    Vertical = 1
+
+    def __init__(self, imageDir):
+        super(ImageDataTabWidget, self).__init__()
+        self.setAttribute(Qt.WA_DeleteOnClose)
+
+        self.mainLayout = QHBoxLayout(self)
+        self.mainSplitter = QSplitter(Qt.Horizontal)
+        self.toolsetTab = CollapsibleTabWidget(self.Vertical, self)
+        self.toolset = QToolBox(self)
+        self.imageViewer = QTabWidget(self)
+
+        self.initUI()
+
+    def initUI(self):
+        self.setLayout(self.mainLayout)
+        self.mainLayout.addWidget(self.mainSplitter)
+        self.toolsetTab.addTab(self.toolset, 'toolSet')
+        self.toolsetTab.addTab(QTextEdit(self), 'test2')
+
+        self.mainSplitter.addWidget(self.toolsetTab)
+        self.mainSplitter.addWidget(self.imageViewer)
+        self.mainSplitter.setStretchFactor(0, 1)
+        self.mainSplitter.setStretchFactor(1, 35)
+        self.mainSplitter.setCollapsible(0, False)
+        self.mainSplitter.setCollapsible(1, False)
+        self.toolsetTab.setSplitter(self.mainSplitter)
+        #
+        self.imageViewer.addTab(QWidget(self), 'test')
 
 
 class testDialog(QDialog):

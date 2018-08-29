@@ -14,7 +14,8 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
     HistoryWidget, queueTabWidget, ImageDataWidget
 from customLayout import FlowLayout
-from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget
+from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget, \
+    ImageDataTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtQuick import QQuickView
 from PyQt5.QtCore import QUrl, QEvent
@@ -268,7 +269,7 @@ class MainFrame(QMainWindow):
         if self.MLProject.imageDirs:
             for d in self.MLProject.imageDirs:
                 imageType, imageCount = self.checkImageInfo(d)
-                iw = ImageDataWidget(imageType,imageCount, d)
+                iw = ImageDataWidget(imageType, imageCount, d)
                 iw.triggered.connect(self.addImageDataTab)
                 self.startTabLayout.addWidget(iw)
 
@@ -293,7 +294,7 @@ class MainFrame(QMainWindow):
         scrollarea.setWidgetResizable(True)
         scrollbar = QScrollBar(self)
         # add scroll area to tab window
-        self.tabWindow.addTab(scrollarea, 'Data: '+os.path.basename(dataFile))
+        self.tabWindow.addTab(scrollarea, 'Data: ' + os.path.basename(dataFile))
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
         dw = DataTabWidget(dataFile)
@@ -326,23 +327,11 @@ class MainFrame(QMainWindow):
 
     def addImageDataTab(self, imageDir: str):
         print(imageDir)
-        scrollarea = QScrollArea(self)
-        scrollarea.setWidgetResizable(True)
-        scrollbar = QScrollBar(self)
         # add scroll area to tab window
-        self.tabWindow.addTab(scrollarea, 'Image:'+os.path.basename(imageDir))
-        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
-
-        imageDataTab = QWidget(self)
-        imageDataLayout = FlowLayout()
-        # add things to layout
-
-
-        imageDataTab.setLayout(imageDataLayout)
-        scrollarea.setWidget(imageDataTab)
-        self.tabList.append(imageDataTab)
-        scrollarea.setVerticalScrollBar(scrollbar)
-        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        iw = ImageDataTabWidget(imageDir)
+        self.tabWindow.addTab(iw, 'Image:' + os.path.basename(imageDir))
+        self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(iw))
+        self.tabList.append(iw)
 
     def addResultTab(self, resultFile: str):
         scrollarea = QScrollArea(self)
@@ -522,7 +511,7 @@ class MainFrame(QMainWindow):
             self.initProjectTab()
 
     def changeEvent(self, event: QEvent):
-        if event.type() ==  QEvent.WindowStateChange:
+        if event.type() == QEvent.WindowStateChange:
             if self.windowState() == Qt.WindowMaximized:
                 self.updateDataTab.emit()
 
@@ -532,6 +521,7 @@ class MainFrame(QMainWindow):
         if imageCount:
             imageType = imageFiles[0].split('.')[1]
         return imageType, imageCount
+
 
 class createModelDialog(QDialog):
     def __init__(self, MLProject: ml_project):
