@@ -1002,11 +1002,32 @@ class ImageCell(QWidget):
         self.imagePixMap = QPixmap.fromImage(self.image)
         self.imageHolder.setPixmap(QPixmap(self.imageFile))
         self.imageHolder.resize(self.image.size())
-
+        # set main layout
         self.mainLayout.addWidget(self.imageHolder)
         self.mainLayout.addWidget(self.imageName)
         # init layout
         self.setLayout(self.mainLayout)
+        self.resize(self.imageHolder.size().width()+self.imageName.size().width(),
+                    self.imageHolder.size().height()+self.imageName.size().height())
+
+    def enterEvent(self, QEvent):
+        self.updateBgColor(QColor('#8598FF'))
+
+    def leaveEvent(self, QEvent):
+        self.updateBgColor(Qt.transparent)
+
+    def updateBgColor(self, color):
+        self.imageName.setAutoFillBackground(True)
+        palette = self.imageName.palette()
+        palette.setColor(self.imageName.backgroundRole(), color)
+        self.imageName.setPalette(palette)
+
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), color)
+        self.setPalette(palette)
+
+        self.update()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
