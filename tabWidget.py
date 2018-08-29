@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, 
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
     QCursor
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from customWidget import CollapsibleTabWidget
+from customWidget import CollapsibleTabWidget, ImageViewer
 from customLayout import FlowLayout
 
 from SwitchButton import switchButton
@@ -1375,8 +1375,8 @@ class ImageDataTabWidget(QWidget):
         self.mainSplitter = QSplitter(Qt.Horizontal)
         self.toolsetTab = CollapsibleTabWidget(self.Vertical, self)
         self.toolset = QToolBox(self)
-        self.imageViewer = QTabWidget(self)
-
+        self.mainTabWidget = QTabWidget(self)
+        self.imageViewer = ImageViewer(imageDir, self)
         self.initUI()
 
     def initUI(self):
@@ -1386,14 +1386,14 @@ class ImageDataTabWidget(QWidget):
         self.toolsetTab.addTab(QTextEdit(self), 'test2')
 
         self.mainSplitter.addWidget(self.toolsetTab)
-        self.mainSplitter.addWidget(self.imageViewer)
+        self.mainSplitter.addWidget(self.mainTabWidget)
         self.mainSplitter.setStretchFactor(0, 1)
         self.mainSplitter.setStretchFactor(1, 35)
         self.mainSplitter.setCollapsible(0, False)
         self.mainSplitter.setCollapsible(1, False)
         self.toolsetTab.setSplitter(self.mainSplitter)
         #
-        self.imageViewer.addTab(QWidget(self), 'test')
+        self.mainTabWidget.addTab(self.imageViewer, 'Image Viewer')
 
 
 class testDialog(QDialog):

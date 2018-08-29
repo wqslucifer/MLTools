@@ -7,13 +7,14 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
     QModelIndex, QAbstractItemModel, QObject
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
-    QMouseEvent, QStandardItemModel, QPaintEvent
+    QMouseEvent, QStandardItemModel, QPaintEvent, QImage, QPixmap
 
 from PyQt5.QtQuick import QQuickView, QQuickItem
 from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtCore import QUrl, pyqtSlot
 from PyQt5.QtGui import QGuiApplication
 from PyQt5 import QtGui
+from customLayout import FlowLayout
 
 from model import ml_model, modelResult
 
@@ -948,6 +949,64 @@ class queueTabWidget(QQuickWidget):
         print(value)
         self.chartCleared.emit()
 
+
+class ImageViewer(QWidget):
+    def __init__(self, imageDir, parent=None):
+        super(ImageViewer, self).__init__(parent=parent)
+        self.imageDir = imageDir
+        self.mainLayout = QVBoxLayout(self)
+        self.toolBar = QToolBar(self)
+        self.viewerLayout = FlowLayout()
+        self.imageWidgetList = list()
+
+        self.initUI()
+
+    def initUI(self):
+        self.setLayout(self.mainLayout)
+        # scroll viewer
+        viewerWidget = QWidget(self)
+        viewerWidget.setLayout(self.viewerLayout)
+        scrollarea = QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollbar = QScrollBar(self)
+        scrollarea.setWidget(viewerWidget)
+        scrollarea.setVerticalScrollBar(scrollbar)
+        scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+        # add widget to main layout
+        # future feature:  add tool bar
+        self.mainLayout.addWidget(scrollarea)
+        self.loadImage()
+
+    def loadImage(self):
+        imageList = os.listdir(self.imageDir)
+        # future feature:  random select image from image list
+        # future feature:  limited number of loaded image
+        for image in imageList:
+            imageFullPath = os.path.join(self.imageDir, image)
+            imageCell = ImageCell(imageFullPath, self)
+            self.imageWidgetList.append(imageCell)
+            self.viewerLayout.addWidget(imageCell)
+
+
+class ImageCell(QWidget):
+    def __init__(self, imageFile, parent=None):
+        super(ImageCell, self).__init__(parent=parent)
+        self.imageFile = imageFile
+        self.imageHolder = QLabel(self)
+        self.imageName = QLabel(os.path.basename(imageFile), self)
+        self.imageName.setAlignment(Qt.AlignCenter)
+        self.mainLayout = QVBoxLayout(self)
+        # init image
+        self.image = QImage(self.imageFile)
+        self.imagePixMap = QPixmap.fromImage(self.image)
+        self.imageHolder.setPixmap(QPixmap(self.imageFile))
+        self.imageHolder.resize(self.image.size())
+
+        self.mainLayout.addWidget(self.imageHolder)
+        self.mainLayout.addWidget(self.imageName)
+        # init layout
+        self.setLayout(self.mainLayout)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
