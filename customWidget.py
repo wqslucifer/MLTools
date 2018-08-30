@@ -1029,6 +1029,15 @@ class ImageCell(QWidget):
 
         self.update()
 
+    def mousePressEvent(self, event:QMouseEvent):
+        pass
+
+    def mouseDoubleClickEvent(self, event:QMouseEvent):
+        print('open image in other dialog')
+
+    def mouseReleaseEvent(self, event:QMouseEvent):
+        pass
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     test = testDialog()
