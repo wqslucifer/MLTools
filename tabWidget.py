@@ -2,13 +2,14 @@ import os
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget
+    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
+    QHeaderView
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
-    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject
+    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
-    QCursor
+    QCursor, QDrag, QStandardItem
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from customWidget import CollapsibleTabWidget, ImageViewer
+from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from customLayout import FlowLayout
 
 from SwitchButton import switchButton
@@ -29,6 +30,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import seaborn as sns
+from process import processQueue
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -84,6 +86,7 @@ class DataTabWidget(QWidget):
         # main window
         self.dataWindow = QWidget(self)
         self.dataWindowLayout = QVBoxLayout(self)
+        self.dataProcess = QWidget(self)
         self.dataExplorer = QTableView(self)
         self.tableModel = customTableModel(self)
         self.dataExplorer.setModel(self.tableModel)
@@ -483,6 +486,7 @@ class DataTabWidget(QWidget):
     def initUI(self):
         self.highLightSetting()
         self.initToolDataInfo()
+        self.initToolProcess()
         self.toolset.addItem(self.tools_highLight, 'Setting')
         self.toolset.addItem(self.tools_dataInfo, 'Data Info')
         self.toolset.addItem(self.tools_process, 'Data Process')
@@ -559,6 +563,13 @@ class DataTabWidget(QWidget):
         layout = QVBoxLayout(self)
         self.tools_dataInfo.setLayout(layout)
         layout.addWidget(QLabel('File Name:'))
+
+    def initToolProcess(self):
+        layout = QVBoxLayout(self)
+        self.tools_process.setLayout(layout)
+        processButton = QPushButton('Data Process', self)
+        processButton.clicked.connect(lambda: self.initProcessTab())
+        layout.addWidget(processButton)
 
     def initDataExplorer(self, filename):
         # load data
@@ -748,6 +759,38 @@ class DataTabWidget(QWidget):
             self.splitterMain.setSizes([height - self.outputTab.splitterLower, self.outputTab.splitterLower])
         else:
             self.splitterMain.setSizes([10000, 0])
+
+    def initProcessTab(self):
+        layout = QVBoxLayout(self)
+        self.dataProcess.setLayout(layout)
+        # init process tab
+        t = DragTableView(self)
+        t.setEditTriggers(QTableView.NoEditTriggers)
+        t.setSelectionBehavior(QTableView.SelectRows)
+        t.setSelectionMode(QTableView.SingleSelection)
+        t.setAlternatingRowColors(True)
+        t.setFocusPolicy(Qt.NoFocus)
+
+        sendQueue = Queue(5)
+        receiveQueue = Queue(5)
+        pq = processQueue(sendQueue, receiveQueue)
+        index = pq.addProcess(None, None)
+        pq.addDescribe(index, 'fill na', 'fill na with 0')
+        index = pq.addProcess(None, None)
+        pq.addDescribe(index, 'normalize', 'do normalization to all columns')
+        index = pq.addProcess(None, None)
+        pq.addDescribe(index, 'normalize 2', 'do normalization to all columns 2')
+        model = customProcessModel(self)
+        model.loadQueue(pq)
+
+        t.setModel(model)
+        t.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        #t.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        t.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        t.show()
+
+        layout.addWidget(t)
+        self.mainTab.addTab(self.dataProcess, 'Process')
 
 
 class NavigationToolbar(NavigationToolbar2QT):

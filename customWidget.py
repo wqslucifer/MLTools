@@ -1,13 +1,17 @@
 import os
 import sys
+import gc
 import time
+import pandas as pd
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
-    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter, QStylePainter, QStyle, QStyleOptionButton
+    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter, QStylePainter, QStyle, \
+    QStyleOptionButton, QTableView
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
-    QModelIndex, QAbstractItemModel, QObject
+    QModelIndex, QAbstractItemModel, QObject, QMimeData, QAbstractTableModel, QVariant
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
-    QMouseEvent, QStandardItemModel, QPaintEvent, QImage, QPixmap
+    QMouseEvent, QStandardItemModel, QPaintEvent, QImage, QPixmap, QDrag, QDragEnterEvent, QDragMoveEvent, QTextOption, \
+    QDropEvent
 
 from PyQt5.QtQuick import QQuickView, QQuickItem
 from PyQt5.QtQuickWidgets import QQuickWidget
@@ -15,6 +19,7 @@ from PyQt5.QtCore import QUrl, pyqtSlot
 from PyQt5.QtGui import QGuiApplication
 from PyQt5 import QtGui
 from customLayout import FlowLayout
+from process import processQueue
 
 from model import ml_model, modelResult
 
@@ -1007,8 +1012,8 @@ class ImageCell(QWidget):
         self.mainLayout.addWidget(self.imageName)
         # init layout
         self.setLayout(self.mainLayout)
-        self.resize(self.imageHolder.size().width()+self.imageName.size().width(),
-                    self.imageHolder.size().height()+self.imageName.size().height())
+        self.resize(self.imageHolder.size().width() + self.imageName.size().width(),
+                    self.imageHolder.size().height() + self.imageName.size().height())
 
     def enterEvent(self, QEvent):
         self.updateBgColor(QColor('#8598FF'))
@@ -1029,14 +1034,177 @@ class ImageCell(QWidget):
 
         self.update()
 
-    def mousePressEvent(self, event:QMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent):
         pass
 
-    def mouseDoubleClickEvent(self, event:QMouseEvent):
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
         print('open image in other dialog')
 
-    def mouseReleaseEvent(self, event:QMouseEvent):
+    def mouseReleaseEvent(self, event: QMouseEvent):
         pass
+
+
+class DragTableView(QTableView):
+    def __init__(self, parent=None):
+        super(DragTableView, self).__init__(parent=parent)
+        self.setAcceptDrops(True)
+
+        self.model = None
+        self.ifValidPress = False
+        self.startRow = 0
+        self.targetRow = 0
+        self.dragStartPoint = None
+        self.dragPointAtItem = None
+        self.dragText = None
+        self.itemRowHeight = 30
+        self.headerHeight = 0
+        self.lineLabel = QLabel(self)
+        self.lineLabel.setFixedHeight(2)
+        self.lineLabel.setGeometry(1, 0, self.width(), 2)
+        self.lineLabel.setStyleSheet("border: 1px solid #8B7500;")
+        self.lineLabel.hide()
+        self.curRow = 0
+
+    def setModel(self, model):
+        self.model = model
+        QTableView.setModel(self, model)
+        self.itemRowHeight = self.rowHeight(0)
+        self.headerHeight = self.horizontalHeader().sectionSizeFromContents(0).height()
+
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            index = self.indexAt(event.pos())
+            if index.isValid():
+                self.ifValidPress = True
+                self.dragStartPoint = event.pos()
+                self.dragText = '%s %s %s' % (self.model.data(self.model.index(index.row(), 0), Qt.DisplayRole),
+                                              self.model.data(self.model.index(index.row(), 1), Qt.DisplayRole),
+                                              self.model.data(self.model.index(index.row(), 2), Qt.DisplayRole))
+                self.dragPointAtItem = self.dragStartPoint - QPoint(0, index.row() * self.itemRowHeight)
+                self.startRow = index.row()
+        QTableView.mousePressEvent(self, event)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if not self.ifValidPress:
+            return
+        if not event.buttons() & Qt.LeftButton:
+            return
+        if (event.pos() - self.dragStartPoint).manhattanLength() < QApplication.startDragDistance():
+            return
+
+        self.lineLabel.show()
+        self.doDrag()
+        self.lineLabel.hide()
+        self.ifValidPress = False
+
+    def doDrag(self):
+        drag = QDrag(self)
+        mimeData = QMimeData()
+        mimeData.setText(self.dragText)
+        drag.setMimeData(mimeData)
+
+        drag_img = QPixmap(self.width(), self.itemRowHeight)
+        drag_img.fill(QColor(255, 255, 255, 100))
+        painter = QPainter(drag_img)
+        painter.setPen(QColor(0, 0, 0, 200))
+        painter.drawText(QRectF(40, 0, self.width(), self.itemRowHeight), self.dragText, QTextOption(Qt.AlignVCenter))
+        painter.end()
+
+        drag.setPixmap(drag_img)
+        drag.setHotSpot(self.dragPointAtItem)
+        if drag.exec(Qt.MoveAction) == Qt.MoveAction:
+            print('drag')
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+            QTableView.dragEnterEvent(self, event)
+
+    def dragMoveEvent(self, event: QDragMoveEvent):
+        if event.mimeData().hasText():
+            self.curRow = 0
+            index = self.indexAt(event.pos())
+            if index.isValid():
+                if event.pos().y() - index.row() * self.itemRowHeight >= self.itemRowHeight / 2:
+                    self.curRow = index.row() + 1
+                else:
+                    self.curRow = index.row()
+            else:
+                self.curRow = self.model.rowCount()
+
+            self.targetRow = self.curRow
+            self.lineLabel.setGeometry(1, self.headerHeight + self.targetRow * self.itemRowHeight, self.width() - 2,
+                                       2)
+            event.acceptProposedAction()
+            return
+        event.ignore()
+        QTableView.dragMoveEvent(self, event)
+
+    def dropEvent(self, event: QDropEvent):
+        if event.mimeData().hasText():
+            if self.startRow != self.targetRow - 1:
+                print('move ', self.startRow, ' to ', self.targetRow)
+            event.acceptProposedAction()
+            return
+        event.ignore()
+        QTableView.dropEvent(self, event)
+
+
+class customProcessModel(QAbstractTableModel):
+    def __init__(self, parent=None):
+        super(customProcessModel, self).__init__(parent=parent)
+        self.rows = 0
+        self.cols = 3  # No. | Process Name | Describe
+        self.processQ = list()
+        self.processInfo = dict()
+
+    def loadQueue(self, PQ: processQueue):
+        self.processQ = PQ.processQ
+        self.processInfo = PQ.processInfo
+        self.rows = PQ.count
+
+    def rowCount(self, parent=None, *args, **kwargs):
+        return self.rows
+
+    def columnCount(self, parent=None, *args, **kwargs):
+        return self.cols
+
+    def setRowCount(self, rows):
+        self.rows = rows
+
+    def setColumnCount(self, cols):
+        self.cols = cols
+
+    def data(self, modelIndex: QModelIndex, role=None):
+        if role == Qt.DisplayRole:
+            p_info = self.processInfo[modelIndex.row()]
+            if modelIndex.column() == 0:
+                return 'No. %d' % modelIndex.row()
+            elif modelIndex.column() == 1:
+                return '%s' % p_info[0]
+            elif modelIndex.column() == 2:
+                return '%s' % p_info[1]
+        else:
+            return QVariant()
+
+    def headerData(self, section, orientation, role=None):
+        if role != Qt.DisplayRole:
+            return QVariant()
+        if orientation == Qt.Horizontal:
+            return ['No.', 'Process Name', 'Process Describe'][section]
+        if orientation == Qt.Vertical:
+            return [i + 1 for i in range(self.rows)]
+        return QVariant()
+
+    def flags(self, modelIndex):
+        # flags = QAbstractTableModel.flags(self, modelIndex)
+        flags = Qt.NoItemFlags
+        flags |= Qt.ItemIsSelectable
+        flags |= Qt.ItemIsEnabled
+        return flags
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
