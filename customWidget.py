@@ -1070,7 +1070,8 @@ class DragTableView(QTableView):
     def setModel(self, model):
         QTableView.setModel(self, model)
         self.model = model
-        self.itemRowHeight = self.rowHeight(0)
+        self.model.notEmpty.connect(self.updateModelInfo)
+        self.itemRowHeight = self.rowHeight(0) if not self.model.checkEmpty() else None
         self.headerHeight = self.horizontalHeader().sectionSizeFromContents(0).height()
 
     def mousePressEvent(self, event: QMouseEvent):
@@ -1116,7 +1117,6 @@ class DragTableView(QTableView):
         drag.setHotSpot(self.dragPointAtItem)
         if drag.exec(Qt.MoveAction) == Qt.MoveAction:
             print('drag')
-            self.viewport().repaint()  # #
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasText():
@@ -1158,21 +1158,26 @@ class DragTableView(QTableView):
         event.ignore()
         QTableView.dropEvent(self, event)
 
+    def updateModelInfo(self):
+        # update height when adding rows to empty model
+        self.itemRowHeight = self.rowHeight(0) if not self.model.checkEmpty() else None
+        self.headerHeight = self.horizontalHeader().sectionSizeFromContents(0).height()
 
 class customProcessModel(QAbstractTableModel):
+    notEmpty = pyqtSignal()
     def __init__(self, parent=None):
         super(customProcessModel, self).__init__(parent=parent)
         self.rows = 0
         self.cols = 3  # No. | Process Name | Describe
         self.processQ = list()
         self.processInfo = dict()
+        self.empty = True
+
+    def checkEmpty(self):
+        self.empty = True if self.rows == 0 else False
+        return self.empty
 
     def loadQueue(self, PQ: processQueue):
-        self.processQ = PQ.processQ
-        self.processInfo = PQ.processInfo
-        self.rows = PQ.count
-
-    def updateQueue(self, PQ: processQueue):
         self.processQ = PQ.processQ
         self.processInfo = PQ.processInfo
         self.rows = PQ.count
@@ -1221,6 +1226,19 @@ class customProcessModel(QAbstractTableModel):
     def moveProcess(self, cur, target):
         self.processQ.insert(target, self.processQ.pop(cur))
         self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows - 1, self.cols - 1))
+
+    def addProcess(self):
+        # self.layoutAboutToBeChanged.emit()
+        flag=False
+        if self.rows == 0:
+            flag=True
+        self.rows += 1
+        self.beginInsertRows(QModelIndex(), self.rows, self.rows)
+        self.dataChanged.emit(self.createIndex(self.rows - 1, 0), self.createIndex(self.rows - 1, self.cols - 1))
+        # self.layoutChanged.emit()
+        self.endInsertRows()
+        if flag:
+            self.notEmpty.emit()
 
 
 if __name__ == '__main__':
