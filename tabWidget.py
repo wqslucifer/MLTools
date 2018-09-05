@@ -91,21 +91,64 @@ class DataTabWidget(QWidget):
         self.tableModel = customTableModel(self)
         self.dataExplorer.setModel(self.tableModel)
         self.statistic = QTableWidget(self)
+        self.dataExplorerPopMenu = QMenu(self)
+        self.plotLayout = FlowLayout()
+        self.pq = processQueue()
+        self.processTabModel = customProcessModel(self)
 
         self.mainTab = QTabWidget(self)
         self.outputTab = CollapsibleTabWidget(self.Horizontal, self)
         self.outputEdit = QTextEdit(self)
         # init UI
         self.initUI()
+        # init statistic table
         self.initStatistic()
         # right click menu
+        self.initRightClickMenu()
+        # plot tab setting
+        self.initPlotTab()
+
+    def initUI(self):
+        self.highLightSetting()
+        self.initToolDataInfo()
+        self.initToolProcess()
+        self.toolset.addItem(self.tools_highLight, 'Setting')
+        self.toolset.addItem(self.tools_dataInfo, 'Data Info')
+        self.toolset.addItem(self.tools_process, 'Data Process')
+        self.toolset.addItem(self.tools_visualize, 'Data Visualize')
+        # init data window
+        self.initDataExplorer(self.filename)
+        self.dataWindowLayout.addWidget(self.dataExplorer)
+        self.dataWindowLayout.addWidget(self.statistic)
+        self.dataWindowLayout.setStretch(0, 1000)
+        self.dataWindowLayout.setStretch(1, 618)
+        self.dataWindow.setLayout(self.dataWindowLayout)
+        self.mainTab.addTab(self.dataWindow, 'Data Explorer')
+        # init output window
+        self.outputTab.addTab(self.outputEdit, 'Output')
+        # init right lay out
+        self.rightLayout.addWidget(self.splitterMain)
+        self.splitterMain.addWidget(self.mainTab)
+        self.splitterMain.addWidget(self.outputTab)
+        self.splitterMain.setStretchFactor(0, 10)
+        self.splitterMain.setStretchFactor(1, 3)
+        self.splitterMain.setCollapsible(0, False)
+        self.splitterMain.setCollapsible(1, False)
+
+        self.mainLayout.addWidget(self.toolset, 0, 0)
+        self.mainLayout.addLayout(self.rightLayout, 0, 1)
+        self.mainLayout.setColumnStretch(0, 2)
+        self.mainLayout.setColumnStretch(1, 10)
+
+        self.outputTab.setSplitter(self.splitterMain)
+
+    def initRightClickMenu(self):
         self.dataExplorer.setContextMenuPolicy(Qt.CustomContextMenu)
         self.dataExplorer.customContextMenuRequested.connect(self.onDataExplorerRightClicked)
-        self.dataExplorerPopMenu = QMenu(self)
-        # plot tab setting
+
+    def initPlotTab(self):
         scrollArea = QScrollArea(self)
         scrollArea.setWidgetResizable(True)
-        self.plotLayout = FlowLayout()
         plotWidget = QWidget(self)
         plotWidget.setLayout(self.plotLayout)
         scrollArea.setWidget(plotWidget)
@@ -113,8 +156,6 @@ class DataTabWidget(QWidget):
         self.mainTab.setMaximumHeight(10000)
         self.mainTab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.mainTab.updateGeometry()
-
-        # self.outputTab.doCollapse.connect(lambda : self.splitterMain.moveSplitter(10000,1))
 
     def regressionPlot(self, point: QPoint):
         """
@@ -483,40 +524,6 @@ class DataTabWidget(QWidget):
         self.mainTab.setCurrentIndex(1)
         self.plotLayout.update()
 
-    def initUI(self):
-        self.highLightSetting()
-        self.initToolDataInfo()
-        self.initToolProcess()
-        self.toolset.addItem(self.tools_highLight, 'Setting')
-        self.toolset.addItem(self.tools_dataInfo, 'Data Info')
-        self.toolset.addItem(self.tools_process, 'Data Process')
-        self.toolset.addItem(self.tools_visualize, 'Data Visualize')
-        # init data window
-        self.initDataExplorer(self.filename)
-        self.dataWindowLayout.addWidget(self.dataExplorer)
-        self.dataWindowLayout.addWidget(self.statistic)
-        self.dataWindowLayout.setStretch(0, 1000)
-        self.dataWindowLayout.setStretch(1, 618)
-        self.dataWindow.setLayout(self.dataWindowLayout)
-        self.mainTab.addTab(self.dataWindow, 'Data Explorer')
-        # init output window
-        self.outputTab.addTab(self.outputEdit, 'Output')
-        # init right lay out
-        self.rightLayout.addWidget(self.splitterMain)
-        self.splitterMain.addWidget(self.mainTab)
-        self.splitterMain.addWidget(self.outputTab)
-        self.splitterMain.setStretchFactor(0, 10)
-        self.splitterMain.setStretchFactor(1, 3)
-        self.splitterMain.setCollapsible(0, False)
-        self.splitterMain.setCollapsible(1, False)
-
-        self.mainLayout.addWidget(self.toolset, 0, 0)
-        self.mainLayout.addLayout(self.rightLayout, 0, 1)
-        self.mainLayout.setColumnStretch(0, 2)
-        self.mainLayout.setColumnStretch(1, 10)
-
-        self.outputTab.setSplitter(self.splitterMain)
-
     def highLightSetting(self):
         layout = QVBoxLayout(self)
         self.tools_highLight.setLayout(layout)
@@ -773,25 +780,27 @@ class DataTabWidget(QWidget):
 
         sendQueue = Queue(5)
         receiveQueue = Queue(5)
-        pq = processQueue(sendQueue, receiveQueue)
-        index = pq.addProcess(None, None)
-        pq.addDescribe(index, 'fill na', 'fill na with 0')
-        index = pq.addProcess(None, None)
-        pq.addDescribe(index, 'normalize', 'do normalization to all columns')
-        index = pq.addProcess(None, None)
-        pq.addDescribe(index, 'normalize 2', 'do normalization to all columns 2')
-        model = customProcessModel(self)
-        model.loadQueue(pq)
-
-        t.setModel(model)
+        self.pq.setSignalQueue(sendQueue, receiveQueue)
+        self.processTabModel.loadQueue(self.pq)
+        t.setModel(self.processTabModel)
         t.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        #t.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        # t.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         t.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         t.show()
 
         layout.addWidget(t)
         self.mainTab.addTab(self.dataProcess, 'Process')
         self.mainTab.setCurrentIndex(2)
+
+        self.addDataProcess(None, {}, 'first func', 'do nothing')
+        self.addDataProcess(None, {}, 'second func', 'do nothing')
+        self.addDataProcess(None, {}, 'third func', 'do nothing')
+        self.addDataProcess(None, {}, 'last func', 'do nothing.....................')
+
+    def addDataProcess(self, func, param: dict, func_name: str, describe: str):
+        index = self.pq.addProcess(func, param)
+        self.pq.addDescribe(index, func_name, describe)
+        self.processTabModel.addProcess()
 
 
 class NavigationToolbar(NavigationToolbar2QT):

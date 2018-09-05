@@ -11,7 +11,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 
 class processQueue(Process):
-    def __init__(self, sendQueue: Queue, receiveQueue: Queue):
+    def __init__(self):
         super(processQueue, self).__init__()
         # local data
         self.dataType = None
@@ -28,11 +28,15 @@ class processQueue(Process):
         self.count = 0
         # comm data
         self.monitor = None
-        self.sendQueue = sendQueue
-        self.receiveQueue = receiveQueue
+        self.sendQueue = None
+        self.receiveQueue = None
         # process info
         self.PID = None
         self.parentPID = None
+
+    def setSignalQueue(self, sendQueue: Queue, receiveQueue: Queue):
+        self.sendQueue = sendQueue
+        self.receiveQueue = receiveQueue
 
     def setData(self, dataType, trainSet, testSet=None):
         self.dataType = dataType
