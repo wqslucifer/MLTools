@@ -1065,9 +1065,11 @@ class DragTableView(QTableView):
         self.lineLabel.hide()
         self.curRow = 0
 
+        self.setDropIndicatorShown(True)
+
     def setModel(self, model):
-        self.model = model
         QTableView.setModel(self, model)
+        self.model = model
         self.itemRowHeight = self.rowHeight(0)
         self.headerHeight = self.horizontalHeader().sectionSizeFromContents(0).height()
 
@@ -1114,6 +1116,7 @@ class DragTableView(QTableView):
         drag.setHotSpot(self.dragPointAtItem)
         if drag.exec(Qt.MoveAction) == Qt.MoveAction:
             print('drag')
+            self.viewport().repaint()  # #
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasText():
@@ -1144,8 +1147,12 @@ class DragTableView(QTableView):
 
     def dropEvent(self, event: QDropEvent):
         if event.mimeData().hasText():
-            if self.startRow != self.targetRow - 1:
+            if self.startRow != self.targetRow - 1 and self.startRow != self.targetRow:
                 print('move ', self.startRow, ' to ', self.targetRow)
+                if self.targetRow > self.startRow:
+                    self.model.moveProcess(self.startRow, self.targetRow - 1)
+                else:
+                    self.model.moveProcess(self.startRow, self.targetRow)
             event.acceptProposedAction()
             return
         event.ignore()
@@ -1165,6 +1172,11 @@ class customProcessModel(QAbstractTableModel):
         self.processInfo = PQ.processInfo
         self.rows = PQ.count
 
+    def updateQueue(self, PQ: processQueue):
+        self.processQ = PQ.processQ
+        self.processInfo = PQ.processInfo
+        self.rows = PQ.count
+
     def rowCount(self, parent=None, *args, **kwargs):
         return self.rows
 
@@ -1179,7 +1191,8 @@ class customProcessModel(QAbstractTableModel):
 
     def data(self, modelIndex: QModelIndex, role=None):
         if role == Qt.DisplayRole:
-            p_info = self.processInfo[modelIndex.row()]
+            p_id = self.processQ[modelIndex.row()][0]
+            p_info = self.processInfo[p_id]
             if modelIndex.column() == 0:
                 return 'No. %d' % modelIndex.row()
             elif modelIndex.column() == 1:
@@ -1204,6 +1217,10 @@ class customProcessModel(QAbstractTableModel):
         flags |= Qt.ItemIsSelectable
         flags |= Qt.ItemIsEnabled
         return flags
+
+    def moveProcess(self, cur, target):
+        self.processQ.insert(target, self.processQ.pop(cur))
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows - 1, self.cols - 1))
 
 
 if __name__ == '__main__':

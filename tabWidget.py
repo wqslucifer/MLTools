@@ -791,6 +791,7 @@ class DataTabWidget(QWidget):
 
         layout.addWidget(t)
         self.mainTab.addTab(self.dataProcess, 'Process')
+        self.mainTab.setCurrentIndex(2)
 
 
 class NavigationToolbar(NavigationToolbar2QT):
