@@ -11,6 +11,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainte
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from customLayout import FlowLayout
+from processSettingDialogs import fillNADialog, initPQDialog
 
 from SwitchButton import switchButton
 import pandas as pd
@@ -61,6 +62,7 @@ class DataTabWidget(QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # local data
         self.filename = filename
+        self.dataType = None
         self.dataFrame = None
         self.verticalHeaderWidth = 70
         self.displayRows = 2
@@ -96,6 +98,7 @@ class DataTabWidget(QWidget):
         self.plotLayout = FlowLayout()
         self.pq = processQueue()
         self.processTabModel = customProcessModel(self)
+        self.processButtonList = None
 
         self.mainTab = QTabWidget(self)
         self.outputTab = CollapsibleTabWidget(self.Horizontal, self)
@@ -576,15 +579,24 @@ class DataTabWidget(QWidget):
     def initToolProcess(self):
         layout = QVBoxLayout(self)
         self.tools_process.setLayout(layout)
-        processButton = QPushButton('Data Process', self)
-        layout.addWidget(processButton)
+        initProcessQueueButton = QPushButton('Init Process Queue', self)
+        initProcessQueueButton.clicked.connect(lambda :self.popSetting('initPQ'))
+        fillNAButton = QPushButton('Fill NA', self)
+        fillNAButton.clicked.connect(lambda :self.popSetting('fillNA'))
+        layout.addWidget(initProcessQueueButton)
+        layout.addWidget(fillNAButton)
+        layout.addStretch(10)
+        self.processButtonList = [fillNAButton]
+        self.setButtonEnable(False)
 
     def initDataExplorer(self, filename):
         # load data
         if filename.endswith('csv'):
             self.dataFrame = pd.read_csv(filename)
+            self.dataType = 'csv'
         elif filename.endswith('pkl'):
             self.dataFrame = pd.read_pickle(filename)
+            self.dataType = 'pkl'
         # init table
         self.dataExplorer.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.dataExplorer.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
@@ -805,12 +817,22 @@ class DataTabWidget(QWidget):
         self.pq.addDescribe(index, func_name, describe)
         self.processTabModel.addProcess()
 
-    # process funcs
-    def fillNA(self, point:QPoint):
-        index = self.dataExplorer.indexAt(point)
-        print('row:', index.row())
-        print('col:', index.column())
+    # process setting
+    def popSetting(self, processName:str):
+        if processName == 'initPQ':
+            dialog = initPQDialog(self.pq, self)
+            dialog.setModal(True)
+            dialog.show()
+            if dialog.if_inited:
+                self.setButtonEnable(True)
+        if processName == 'fillNA':
+            dialog = fillNADialog(self.pq, parent=self)
+            dialog.setModal(True)
+            dialog.show()
 
+    def setButtonEnable(self, value:bool):
+        for b in self.processButtonList:
+            b.setEnabled(value)
 
 class NavigationToolbar(NavigationToolbar2QT):
     def __init__(self, *args, **kwargs):
