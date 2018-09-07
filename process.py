@@ -11,6 +11,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 
 class processQueue(Process):
+    # method: FILL_VALUE, IGNORE, DELETE,FILL_MEAN, FILL_CLASS_MEAN, FILL_MEDIAN, FILL_BAYESIAN
     def __init__(self):
         super(processQueue, self).__init__()
         # local data
@@ -43,9 +44,14 @@ class processQueue(Process):
         self.trainSet = trainSet
         self.testSet = testSet
         self.trainSetOnly = True if testSet is None else False
+        self.features = self.trainSet.columns.tolist()
+        self.setDataInfo()
 
     def setTarget(self, target):
         self.target = target
+
+    def setTestSet(self, testSet: pd.DataFrame):
+        self.testSet = testSet
 
     def setFeatures(self, features):
         self.features = features
@@ -80,14 +86,16 @@ class processQueue(Process):
         if self.trainSet is not None:
             if self.dataType in ['csv', 'pkl']:
                 if self.features:
-                    self.numericFeatures = list(
-                        set(self.features) and set(self.trainSet.columns[self.trainSet.dtypes != 'object']))
-                    self.categoricalFeatures = list(
-                        set(self.features) and set(self.trainSet.columns[self.trainSet.dtypes == 'object']))
+                    self.numericFeatures = [f for f in self.features
+                                            and self.trainSet.columns[self.trainSet.dtypes != 'object']]
+                    self.categoricalFeatures = [f for f in self.features
+                                                and self.trainSet.columns[self.trainSet.dtypes == 'object']]
                 else:
                     if self.target is None:
-                        raise Exception('target not set')
-                    self.features = self.trainSet.columns.difference(list(self.target))
+                        # raise Exception('target not set')
+                        self.features = self.trainSet.columns.tolist()
+                    else:
+                        self.features = self.trainSet.columns.difference(list(self.target)).tolist()
                     self.numericFeatures = list(self.trainSet.columns[self.trainSet.dtypes != 'object'])
                     self.categoricalFeatures = list(self.trainSet.columns[self.trainSet.dtypes == 'object'])
 
@@ -130,13 +138,11 @@ class processQueue(Process):
         print('test end')
 
     # data process func
-    def fillNA(self, value, feature=None):
+    def fillNA(self, applyFeatures, applyRows, method, value):
         targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
         for d in targetList:
-            if feature is not None:
-                d.iloc[:, feature].fillna(value, inplace=True)
-            else:
-                d.fillna(value, inplace=True)
+            if method=='FILL_VALUE':
+                d.iloc[applyRows, applyFeatures].fillna(value=value)
 
     # image process func
     def resizeImage(self, size):

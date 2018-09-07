@@ -11,7 +11,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainte
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from customLayout import FlowLayout
-from processSettingDialogs import fillNADialog, initPQDialog
+from processSettingDialogs import fillNADialog
 
 from SwitchButton import switchButton
 import pandas as pd
@@ -579,15 +579,11 @@ class DataTabWidget(QWidget):
     def initToolProcess(self):
         layout = QVBoxLayout(self)
         self.tools_process.setLayout(layout)
-        initProcessQueueButton = QPushButton('Init Process Queue', self)
-        initProcessQueueButton.clicked.connect(lambda :self.popSetting('initPQ'))
         fillNAButton = QPushButton('Fill NA', self)
         fillNAButton.clicked.connect(lambda :self.popSetting('fillNA'))
-        layout.addWidget(initProcessQueueButton)
         layout.addWidget(fillNAButton)
         layout.addStretch(10)
         self.processButtonList = [fillNAButton]
-        self.setButtonEnable(False)
 
     def initDataExplorer(self, filename):
         # load data
@@ -601,6 +597,7 @@ class DataTabWidget(QWidget):
         self.dataExplorer.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.dataExplorer.verticalHeader().setFixedWidth(self.verticalHeaderWidth)
         self.tableModel.loadCSV(self.dataFrame)
+        self.pq.setData(self.dataType, self.dataFrame)
 
     def initStatistic(self):
         rowCount = 0
@@ -819,16 +816,10 @@ class DataTabWidget(QWidget):
 
     # process setting
     def popSetting(self, processName:str):
-        if processName == 'initPQ':
-            dialog = initPQDialog(self.pq, self)
-            dialog.setModal(True)
-            dialog.show()
-            if dialog.if_inited:
-                self.setButtonEnable(True)
         if processName == 'fillNA':
             dialog = fillNADialog(self.pq, parent=self)
-            dialog.setModal(True)
             dialog.show()
+            dialog.accepted.connect(lambda :self.addDataProcess(*dialog.addProcess()))
 
     def setButtonEnable(self, value:bool):
         for b in self.processButtonList:
