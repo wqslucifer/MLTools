@@ -11,7 +11,7 @@ from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainte
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from customLayout import FlowLayout
-from processSettingDialogs import fillNADialog
+from processSettingDialogs import fillNADialog, logTransformDialog
 
 from SwitchButton import switchButton
 import pandas as pd
@@ -98,7 +98,6 @@ class DataTabWidget(QWidget):
         self.plotLayout = FlowLayout()
         self.pq = processQueue()
         self.processTabModel = customProcessModel(self)
-        self.processButtonList = None
 
         self.mainTab = QTabWidget(self)
         self.outputTab = CollapsibleTabWidget(self.Horizontal, self)
@@ -579,11 +578,16 @@ class DataTabWidget(QWidget):
     def initToolProcess(self):
         layout = QVBoxLayout(self)
         self.tools_process.setLayout(layout)
+        # fill na
         fillNAButton = QPushButton('Fill NA', self)
         fillNAButton.clicked.connect(lambda :self.popSetting('fillNA'))
+        # log transform
+        logTransformButton = QPushButton('Log Transformation', self)
+        logTransformButton.clicked.connect(lambda :self.popSetting('logTrans'))
+
         layout.addWidget(fillNAButton)
+        layout.addWidget(logTransformButton)
         layout.addStretch(10)
-        self.processButtonList = [fillNAButton]
 
     def initDataExplorer(self, filename):
         # load data
@@ -820,10 +824,10 @@ class DataTabWidget(QWidget):
             dialog = fillNADialog(self.pq, parent=self)
             dialog.show()
             dialog.accepted.connect(lambda :self.addDataProcess(*dialog.addProcess()))
-
-    def setButtonEnable(self, value:bool):
-        for b in self.processButtonList:
-            b.setEnabled(value)
+        if processName == 'logTrans':
+            dialog = logTransformDialog(self.pq, parent=self)
+            dialog.show()
+            dialog.accepted.connect(lambda :self.addDataProcess(*dialog.addProcess()))
 
 class NavigationToolbar(NavigationToolbar2QT):
     def __init__(self, *args, **kwargs):
