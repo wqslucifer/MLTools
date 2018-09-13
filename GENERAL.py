@@ -1,5 +1,3 @@
-
-
 def init():
     global global_dict
     global_dict = dict()

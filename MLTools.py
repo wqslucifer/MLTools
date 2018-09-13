@@ -114,6 +114,11 @@ class MainFrame(QMainWindow):
         self.queueAction.setStatusTip('Queue Management')
         self.queueAction.triggered.connect(self.addQueueTab)
         self.toolBar.addAction(self.queueAction)
+        # run queue
+        self.runQueueAction = QAction(QIcon('./res/RunQueue.ico'), 'Run Queue', self)
+        self.runQueueAction.setStatusTip('Run Queue')
+        self.runQueueAction.triggered.connect(self.runQueue)
+        self.toolBar.addAction(self.runQueueAction)
         # set menu
         openProjectMenu = self.ui.actionOpen_Project
         openProjectMenu.triggered.connect(self.openProjectDialog)
@@ -154,6 +159,7 @@ class MainFrame(QMainWindow):
                     self.settingFile = os.path.join('./', 'setting.ml')
         GENERAL.set_value('PROJECT_HOME', self.MLProject.projectDir)
         GENERAL.set_value('PROJECT', self.MLProject)
+        GENERAL.set_value('PROCESS_LIST', self.MLProject.processList)
         self.openProject(self.MLProject.projectFile)
 
     def openProjectDialog(self):
@@ -361,7 +367,6 @@ class MainFrame(QMainWindow):
         self.tabWindow.addTab(scrollarea, 'Queue')
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
-
         self.queueTab = queueTabWidget(self)
         scrollarea.setWidget(self.queueTab)
         self.tabList.append(self.queueTab)
@@ -406,6 +411,7 @@ class MainFrame(QMainWindow):
         self.MLProject = ml_project.loadProject(projectFile)
         GENERAL.set_value('PROJECT_HOME', self.MLProject.projectDir)
         GENERAL.set_value('PROJECT', self.MLProject)
+        GENERAL.set_value('PROCESS_LIST', self.MLProject.processList)
         # init local variable
         self.fullProjectDir = self.MLProject.projectDir
         self.initUI_Project()
@@ -521,6 +527,9 @@ class MainFrame(QMainWindow):
         if imageCount:
             imageType = imageFiles[0].split('.')[1]
         return imageType, imageCount
+
+    def runQueue(self):
+        pass
 
 
 class createModelDialog(QDialog):

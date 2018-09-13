@@ -15,6 +15,7 @@ class ml_project:
         self.projectDir = None  # dir
         self.description = None  # save in file
         self.model = list()  # save each model class
+        self.processList = list() # list for data process and model running
 
         self.modelFiles = list() # *.md
         self.scriptFiles = list()  # python or jupyter notebook script list

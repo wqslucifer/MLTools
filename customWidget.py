@@ -6,7 +6,7 @@ import pandas as pd
 from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
     QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
     QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter, QStylePainter, QStyle, \
-    QStyleOptionButton, QTableView
+    QStyleOptionButton, QTableView, QListWidgetItem, QProgressBar
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
     QModelIndex, QAbstractItemModel, QObject, QMimeData, QAbstractTableModel, QVariant
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
@@ -22,6 +22,7 @@ from customLayout import FlowLayout
 from process import processQueue
 
 from model import ml_model, modelResult
+import GENERAL
 
 
 # widgets for main window tabs
@@ -932,27 +933,98 @@ class testDialog(QDialog):
         self.mainLayout = QVBoxLayout(self)
         self.setFixedSize(800, 500)
         self.setLayout(self.mainLayout)
-        qml = queueTabWidget(self)
-        self.mainLayout.addWidget(qml)
-        r = qml.rootObject()
-        for i in range(20):
-            r.testPrint('test1name', 'alg_xgb', 'param_asdf')
-        pass
+        q = queueTabWidget(self)
+        self.mainLayout.addWidget(q)
+
+        q.addItem('name1', 'describe1')
 
 
-class queueTabWidget(QQuickWidget):
-    chartCleared = pyqtSignal()
+class queueTabWidget(QWidget):
 
     def __init__(self, parent=None):
         super(queueTabWidget, self).__init__(parent=parent)
-        self.setSource(QUrl.fromLocalFile('queueTab.qml'))
-        self.setResizeMode(QQuickWidget.SizeRootObjectToView)
-        self.rootContext().setContextProperty('queueTabWidget', self)
+        self.mainLayout = QVBoxLayout(self)
+        self.mainList = QListWidget(self)
+        self.mainLayout.addWidget(self.mainList)
+        self.processList = GENERAL.get_value('PROCESS_LIST')
+        self.initProcessList()
 
-    @pyqtSlot(str)
-    def myprint(self, value):
-        print(value)
-        self.chartCleared.emit()
+    def initProcessList(self):
+        for pq in self.processList:
+            self.addProcess(pq)
+
+    def addProcess(self, pq: processQueue):
+        item = QWidget(self)
+        itemLayout = QVBoxLayout(self)
+        item.setLayout(itemLayout)
+        item.setObjectName('MainItem')
+        item.setStyleSheet('QWidget#MainItem{border: 2px solid}')
+
+        header = QWidget(self)
+        headerLayout = QHBoxLayout(self)
+        header.setLayout(headerLayout)
+        header.setStyleSheet('border-bottom: 2px solid')
+        if pq.pid:
+            PID = QLabel('%d' % pq.pid, self)
+        else:
+            PID = QLabel('PID', self)
+        PID.setFixedWidth(25)
+        PID.setAlignment(Qt.AlignCenter)
+        typeLabel = QLabel('Process Queue', self)
+        typeLabel.setFixedWidth(150)
+        runButton = QPushButton(self)
+        runButton.setIcon(QIcon('./res/RunQueue.ico'))
+        runButton.setToolTip('Run Process')
+        runButton.setStatusTip('Run Process')
+        pauseButton = QPushButton(self)
+        pauseButton.setIcon(QIcon('./res/PauseQueue.ico'))
+        pauseButton.setToolTip('Pause Process')
+        pauseButton.setStatusTip('Pause Process')
+        stopButton = QPushButton(self)
+        stopButton.setIcon(QIcon('./res/StopQueue.ico'))
+        stopButton.setToolTip('Stop Process')
+        stopButton.setStatusTip('Stop Process')
+        headerLayout.addWidget(PID)
+        headerLayout.addWidget(typeLabel)
+        headerLayout.addWidget(runButton)
+        headerLayout.addWidget(pauseButton)
+        headerLayout.addWidget(stopButton)
+        headerLayout.addStretch(1)
+        itemLayout.addWidget(header)
+
+        count = 0
+        for id_, func, param in pq.processQ:
+            name, describe = pq.processInfo[id_]
+            _itemLayout = QHBoxLayout(self)
+            _item = QWidget(self)
+            _item.setLayout(_itemLayout)
+            idLabel = QLabel('%d' % count, self)
+            idLabel.setAlignment(Qt.AlignCenter)
+            idLabel.setFixedWidth(25)
+            processName = QLabel('%s' % name)
+            processName.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
+            processDescribe = QLabel('%s' % describe)
+            processDescribe.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
+
+            progressBar = QProgressBar(self)
+            progressBar.setOrientation(Qt.Horizontal)
+            progressBar.setMinimum(0)
+            progressBar.setMaximum(100)
+            progressBar.setValue(0)
+            progressBar.setFormat('process name：%d%%' % 100)
+
+            _itemLayout.addWidget(idLabel, stretch=1)
+            _itemLayout.addWidget(processName, stretch=4)
+            _itemLayout.addWidget(processDescribe, stretch=10)
+            _itemLayout.addWidget(progressBar, stretch=10)
+
+            itemLayout.addWidget(_item)
+            count += 1
+
+        listWidgetItem = QListWidgetItem(self.mainList)
+        self.mainList.addItem(listWidgetItem)
+        listWidgetItem.setSizeHint(item.sizeHint())
+        self.mainList.setItemWidget(listWidgetItem, item)
 
 
 class ImageViewer(QWidget):
@@ -1163,8 +1235,10 @@ class DragTableView(QTableView):
         self.itemRowHeight = self.rowHeight(0) if not self.model.checkEmpty() else None
         self.headerHeight = self.horizontalHeader().sectionSizeFromContents(0).height()
 
+
 class customProcessModel(QAbstractTableModel):
     notEmpty = pyqtSignal()
+
     def __init__(self, parent=None):
         super(customProcessModel, self).__init__(parent=parent)
         self.rows = 0
@@ -1229,9 +1303,9 @@ class customProcessModel(QAbstractTableModel):
 
     def addProcess(self):
         # self.layoutAboutToBeChanged.emit()
-        flag=False
+        flag = False
         if self.rows == 0:
-            flag=True
+            flag = True
         self.rows += 1
         self.beginInsertRows(QModelIndex(), self.rows, self.rows)
         self.dataChanged.emit(self.createIndex(self.rows - 1, 0), self.createIndex(self.rows - 1, self.cols - 1))

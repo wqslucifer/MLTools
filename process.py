@@ -31,6 +31,7 @@ class processQueue(Process):
         self.monitor = None
         self.sendQueue = None
         self.receiveQueue = None
+        self.currentProcessIndex = 0
         # process info
         self.PID = None
         self.parentPID = None
@@ -127,22 +128,45 @@ class processQueue(Process):
         self.processQ.insert(targetIndex, self.processQ.pop(curIndex))
 
     def run(self):
-        self.test()
-
-    def test(self):
         self.monitor = MyReceiver(self.receiveQueue, self)
         self.monitor.setDaemon(True)
         self.monitor.start()
-        print('test start')
-        self.sendQueue.put('test process working')
-        print('test end')
+        self.doProcess()
+
+    def doProcess(self):
+        for processQueueID, func, param in self.processQ:
+            self.currentProcessIndex=processQueueID
+            self.sendQueue.put('RUN:'+str(self.currentProcessIndex))
+            func(**param)
+            self.sendQueue.put('FINISHED:'+str(self.currentProcessIndex))
 
     # data process func
     def fillNA(self, applyFeatures, applyRows, method, value):
+        try:
+            targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
+            for d in targetList:
+                if method=='FILL_VALUE':
+                    d.loc[applyRows, applyFeatures].fillna(value=value, inplace=True)
+        except Exception as e:
+            return e
+        else:
+            return 0
+
+    def dataTransform(self, applyFeatures, applyRows, method):
         targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
         for d in targetList:
-            if method=='FILL_VALUE':
-                d.iloc[applyRows, applyFeatures].fillna(value=value)
+            if method=='RECIPROCAL':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:1/(x+1))
+            elif method=='LOG_10':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.log10(x))
+            elif method=='LOG_2':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.log2(x))
+            elif method=='LOG_E':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.log(x))
+            elif method=='SQUARE_ROOT':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.sqrt(x))
+            elif method=='CUBE_ROOT':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.cbrt(x))
 
     # image process func
     def resizeImage(self, size):

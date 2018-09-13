@@ -53,7 +53,6 @@ class fillNADialog(QDialog):
         self.applyRows = None
         self.param = dict()
         self.method = None
-        self.value = None
         # widgets
         self.mainLayout = QVBoxLayout(self)
         self.downLayout = QHBoxLayout(self)
@@ -222,11 +221,12 @@ class fillNADialog(QDialog):
         self.rightLayout.addLayout(buttonLayout)
 
     def addToQueue(self):
+        self.prepareData()
         if self.method:
-            if not (self.method == 'FILL_VALUE' and self.value):
-                QMessageBox.warning(self, 'warning', 'Please set a filling value', QMessageBox.Ok)
-                return
-            self.prepareData()
+            if self.method == 'FILL_VALUE':
+                if self.value is None:
+                    QMessageBox.warning(self, 'warning', 'Please set a filling value', QMessageBox.Ok)
+                    return
             self.accept()
         else:
             QMessageBox.warning(self, 'warning', 'Please select a filling method', QMessageBox.Ok)
@@ -306,34 +306,46 @@ class logTransformDialog(QDialog):
         self.processQ = PQ
         self.applyAllFeatures = True
         self.applyFeatures = None
+        self.applyAllRows = True
+        self.applyRows = None
         self.param = dict()
         self.method = None
-        self.loadSkewed = False
-        self.SkewedFeatures = None
         # widgets
         self.mainLayout = QVBoxLayout(self)
         self.downLayout = QHBoxLayout(self)
         self.leftLayout = QVBoxLayout(self)
         self.rightLayout = QVBoxLayout(self)
 
-        self.titleLabel = QLabel('Log Transformation', self)
+        self.titleLabel = QLabel('Transformation', self)
         # features
-        self.featureList = QTextEdit(self)
         self.featureGroup = QGroupBox('Features', self)
         self.featureButtonGroup = QButtonGroup(self)
-        self.checkAllFeatures = QRadioButton(self)
         self.checkNumericFeatures = QRadioButton(self)
-        self.checkCategoricalFeatures = QRadioButton(self)
         self.checkCustomFeatures = QRadioButton(self)
-        self.featureMethod = None
-        self.loadSkewedFeatures = QPushButton('load Skewed Feature', self)
-
+        self.featureList = QTextEdit(self)
+        # rows
+        self.rowGroup = QGroupBox('Rows', self)
+        self.rowButtonGroup = QButtonGroup(self)
+        self.checkAllRows = QRadioButton(self)
+        self.checkCustomRows = QRadioButton(self)
+        self.rowList = QTextEdit(self)
+        # filling method
+        # FILL_VALUE, IGNORE, DELETE,FILL_MEAN, FILL_CLASS_MEAN, FILL_MEDIAN, FILL_BAYESIAN
+        self.methodGroup = QGroupBox('Transform Function', self)
+        self.methodButtonGroup = QButtonGroup(self)
+        self.method_RECIPROCAL = QRadioButton(self)
+        self.method_LOG_10 = QRadioButton(self)
+        self.method_LOG_E = QRadioButton(self)
+        self.method_LOG_2 = QRadioButton(self)
+        self.method_SQUARE_ROOT = QRadioButton(self)
+        self.method_CUBE_ROOT = QRadioButton(self)
         # confirm
         self.addToQueueButton = QPushButton('Add To Queue', self)
         self.initUI()
 
     def initUI(self):
         self.setFixedSize(800, 600)
+
         self.setLayout(self.mainLayout)
         self.mainLayout.addWidget(self.titleLabel, 1, Qt.AlignTop)
         self.mainLayout.addLayout(self.downLayout, 10)
@@ -347,53 +359,106 @@ class logTransformDialog(QDialog):
 
         # feature
         vbox = QVBoxLayout(self)
-        vbox.addWidget(self.checkAllFeatures)
         vbox.addWidget(self.checkNumericFeatures)
-        vbox.addWidget(self.checkCategoricalFeatures)
         vbox.addWidget(self.checkCustomFeatures)
-        vbox.addWidget(self.loadSkewedFeatures)
         vbox.addWidget(self.featureList)
         self.featureList.setEnabled(False)
         self.featureGroup.setLayout(vbox)
-        self.featureButtonGroup.addButton(self.checkAllFeatures)
         self.featureButtonGroup.addButton(self.checkNumericFeatures)
-        self.featureButtonGroup.addButton(self.checkCategoricalFeatures)
         self.featureButtonGroup.addButton(self.checkCustomFeatures)
-        # checkAllFeatures
-        self.checkAllFeatures.setText('Fill All Features')
-        self.checkAllFeatures.setFixedHeight(20)
-        self.checkAllFeatures.setFont(QFont('Arial', 10, QFont.Times))
-        #self.checkAllFeatures.toggled.connect(self.setFeatures)
-        self.checkAllFeatures.setChecked(True)
         # checkNumericFeatures
-        self.checkNumericFeatures.setText('Fill All Numeric Features')
+        self.checkNumericFeatures.setText('Transform All Numeric Features')
         self.checkNumericFeatures.setFixedHeight(20)
         self.checkNumericFeatures.setFont(QFont('Arial', 10, QFont.Times))
-        # checkCategoricalFeatures
-        self.checkCategoricalFeatures.setText('Fill All Categorical Features')
-        self.checkCategoricalFeatures.setFixedHeight(20)
-        self.checkCategoricalFeatures.setFont(QFont('Arial', 10, QFont.Times))
+        self.checkNumericFeatures.setChecked(True)
         # checkCustomFeatures
         self.checkCustomFeatures.setText('Fill Custom Features')
         self.checkCustomFeatures.setFixedHeight(20)
         self.checkCustomFeatures.setFont(QFont('Arial', 10, QFont.Times))
         self.checkCustomFeatures.toggled.connect(self.featureList.setEnabled)
-        self.checkCustomFeatures.toggled.connect(self.loadSkewedFeatures.setEnabled)
-        self.loadSkewedFeatures.setEnabled(False)
-        self.loadSkewedFeatures.clicked.connect(self.loadSkewedColumns)
-        # leftLayout
+        # row
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.checkAllRows)
+        vbox.addWidget(self.checkCustomRows)
+        vbox.addWidget(self.rowList)
+        self.rowList.setEnabled(False)
+        self.rowGroup.setLayout(vbox)
+        self.rowButtonGroup.addButton(self.checkAllRows)
+        self.rowButtonGroup.addButton(self.checkCustomRows)
+        self.checkAllRows.setChecked(True)
+        for checkRow_ in [self.checkAllRows, self.checkCustomRows]:
+            checkRow_.setFixedHeight(20)
+            checkRow_.setFont(QFont('Arial', 10, QFont.Times))
+        # checkAllRows
+        self.checkAllRows.setText('Fill All Rows')
+        self.checkAllRows.toggled.connect(self.setApplyAllRows)
+        # checkCustomRows
+        self.checkCustomRows.setText('Fill custom Rows')
+        self.checkCustomRows.toggled.connect(self.rowList.setEnabled)
+        # row list
         self.leftLayout.addWidget(self.featureGroup, alignment=Qt.AlignTop)
+        self.leftLayout.addWidget(self.rowGroup, alignment=Qt.AlignTop)
         self.leftLayout.addStretch(1)
+        # method
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.method_RECIPROCAL)
+        vbox.addWidget(self.method_LOG_10)
+        vbox.addWidget(self.method_LOG_E)
+        vbox.addWidget(self.method_LOG_2)
+        vbox.addWidget(self.method_SQUARE_ROOT)
+        vbox.addWidget(self.method_CUBE_ROOT)
+        self.methodGroup.setLayout(vbox)
+        self.methodButtonGroup.addButton(self.method_RECIPROCAL)
+        self.methodButtonGroup.addButton(self.method_LOG_10)
+        self.methodButtonGroup.addButton(self.method_LOG_E)
+        self.methodButtonGroup.addButton(self.method_LOG_2)
+        self.methodButtonGroup.addButton(self.method_SQUARE_ROOT)
+        self.methodButtonGroup.addButton(self.method_CUBE_ROOT)
+
+        # method_FILL_VALUE
+        for method_ in [self.method_RECIPROCAL, self.method_LOG_10, self.method_LOG_E,
+                        self.method_LOG_2, self.method_SQUARE_ROOT, self.method_CUBE_ROOT]:
+            method_.setFixedHeight(20)
+            method_.setFont(QFont('Arial', 10, QFont.Times))
+        # method_LOG_10
+        self.method_RECIPROCAL.setText('T=1/x')
+        self.method_RECIPROCAL.toggled.connect(lambda: self.setMethod('RECIPROCAL'))
+        # method_RECIPROCAL
+        self.method_LOG_10.setText('T=log10(x)')
+        self.method_LOG_10.toggled.connect(lambda: self.setMethod('LOG_10'))
+        # method_RECIPROCAL
+        self.method_LOG_2.setText('T=log2(x)')
+        self.method_LOG_2.toggled.connect(lambda: self.setMethod('LOG_2'))
+        # method_RECIPROCAL
+        self.method_LOG_E.setText('T=ln(x)')
+        self.method_LOG_E.toggled.connect(lambda: self.setMethod('LOG_E'))
+        # method_RECIPROCAL
+        self.method_SQUARE_ROOT.setText('T=x**1/2')
+        self.method_SQUARE_ROOT.toggled.connect(lambda: self.setMethod('SQUARE_ROOT'))
+        # method_RECIPROCAL
+        self.method_CUBE_ROOT.setText('T=x**1/3')
+        self.method_CUBE_ROOT.toggled.connect(lambda: self.setMethod('CUBE_ROOT'))
 
         # add to queue button
         self.addToQueueButton.setFixedSize(100, 35)
         self.addToQueueButton.clicked.connect(self.addToQueue)
         buttonLayout = QHBoxLayout(self)
-        buttonLayout.setContentsMargins(0,0,20,0)
-        buttonLayout.addWidget(self.addToQueueButton,alignment=Qt.AlignRight)
+        buttonLayout.addStretch(1)
+        buttonLayout.addWidget(self.addToQueueButton)
         # right layout
+        self.rightLayout.addWidget(self.methodGroup)
+        self.rightLayout.addStretch(1)
+        self.rightLayout.addLayout(buttonLayout)
 
-        self.rightLayout.addLayout(buttonLayout,stretch=1)
+    def addToQueue(self):
+        if self.method:
+            self.prepareData()
+            self.accept()
+        else:
+            QMessageBox.warning(self, 'warning', 'Please select a filling method', QMessageBox.Ok)
+
+    def setApplyAllRows(self, value):
+        self.applyAllRows = value
 
     def setFeatures(self):
         self.featureList.clear()
@@ -413,30 +478,46 @@ class logTransformDialog(QDialog):
             for f in self.processQ.categoricalFeatures:
                 self.featureList.append(f)
 
+    def setMethod(self, value):
+        self.method = value
+
     def prepareData(self):
-        if self.checkAllFeatures.isChecked():
-            self.applyFeatures = self.processQ.features
-        elif self.checkNumericFeatures.isChecked():
+        if self.checkNumericFeatures.isChecked():
             self.applyFeatures = self.processQ.numericFeatures
-        elif self.checkCategoricalFeatures.isChecked():
-            self.applyFeatures = self.processQ.categoricalFeatures
         else:
-            if self.loadSkewed:
-                self.applyFeatures = self.SkewedFeatures
-            else:
-                s = self.featureList.toPlainText()
-                self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            s = self.featureList.toPlainText()
+            self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+
+        if not self.checkAllRows:
+            s = self.rowList.toPlainText()
+            self.applyRows = [int(i) for i in s.split(',')]
+        else:
+            self.applyRows = self.processQ.trainSet.index.tolist()
 
         self.param['applyFeatures'] = self.applyFeatures
+        self.param['applyRows'] = self.applyRows
+        self.param['method'] = self.method
 
-    def addToQueue(self):
-        if self.method:
-            self.prepareData()
-            self.accept()
-        QMessageBox.warning(self, 'warning', 'Please select a filling method', QMessageBox.Ok)
-
-    def loadSkewedColumns(self):
-        self.SkewedFeatures = []
+    def addProcess(self):
+        describe = {
+            'RECIPROCAL':'Transform column using Reciprocal t=1/x',
+            'LOG_10':'Transform column using LOG_10 t=log10(x)',
+            'LOG_2':'Transform column using LOG_2 t=log2(x)',
+            'LOG_E':'Transform column using LOG_E t=ln(x)',
+            'SQUARE_ROOT':'Transform column using SQUARE_ROOT t=x**1/2',
+            'CUBE_ROOT':'Transform column using CUBE_ROOT t=x**1/3',
+        }
+        transformName = {
+            'RECIPROCAL':'Transform: t=1/x',
+            'LOG_10':'Transform: t=log10(x)',
+            'LOG_2':'Transform: t=log2(x)',
+            'LOG_E':'Transform: t=ln(x)',
+            'SQUARE_ROOT':'Transform: t=x**1/2',
+            'CUBE_ROOT':'Transform: t=x**1/3',
+        }
+        # index = self.processQ.addProcess(self.processQ.fillNA, param=self.param)
+        # self.processQ.addDescribe(index, 'fillNA', describe[self.method])
+        return self.processQ.fillNA, self.param, transformName[self.method], describe[self.method]
 
 
 class testDialog(QDialog):

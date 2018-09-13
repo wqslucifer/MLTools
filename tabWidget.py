@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
     QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
-    QHeaderView
+    QHeaderView,QMessageBox
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
@@ -32,6 +32,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import seaborn as sns
 from process import processQueue
+import GENERAL
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -131,15 +132,16 @@ class DataTabWidget(QWidget):
         self.mainTab.addTab(self.dataWindow, 'Data Explorer')
         # init output window
         self.outputTab.addTab(self.outputEdit, 'Output')
+        self.outputTab.setSplitter(self.splitterMain)
         # init right lay out
         self.rightLayout.addWidget(self.splitterMain)
         self.splitterMain.addWidget(self.mainTab)
         self.splitterMain.addWidget(self.outputTab)
-        #self.splitterMain.setStretchFactor(0, 10)
-        #self.splitterMain.setStretchFactor(1, 3)
+        # self.splitterMain.setStretchFactor(0, 10)
+        # self.splitterMain.setStretchFactor(1, 3)
         self.splitterMain.setCollapsible(0, False)
         self.splitterMain.setCollapsible(1, False)
-        self.splitterMain.setSizes([10000, 0]) # move splitter to the bottom
+        self.splitterMain.setSizes([10000, 0])  # move splitter to the bottom
 
         self.mainLayout.addWidget(self.toolset, 0, 0)
         self.mainLayout.addLayout(self.rightLayout, 0, 1)
@@ -580,13 +582,21 @@ class DataTabWidget(QWidget):
         self.tools_process.setLayout(layout)
         # fill na
         fillNAButton = QPushButton('Fill NA', self)
-        fillNAButton.clicked.connect(lambda :self.popSetting('fillNA'))
+        fillNAButton.clicked.connect(lambda: self.popSetting('fillNA'))
         # log transform
         logTransformButton = QPushButton('Log Transformation', self)
-        logTransformButton.clicked.connect(lambda :self.popSetting('logTrans'))
+        logTransformButton.clicked.connect(lambda: self.popSetting('logTrans'))
+        # add sleep 10s
+        sleepDelayButton = QPushButton('sleep 10s', self)
+        sleepDelayButton.clicked.connect(lambda: self.addDelay())
+
+        # add to queue
+        addToQueueButton = QPushButton('add to Queue', self)
+        addToQueueButton.clicked.connect(lambda :self.addToQueue())
 
         layout.addWidget(fillNAButton)
         layout.addWidget(logTransformButton)
+        layout.addWidget(sleepDelayButton)
         layout.addStretch(10)
 
     def initDataExplorer(self, filename):
@@ -819,15 +829,28 @@ class DataTabWidget(QWidget):
         self.processTabModel.addProcess()
 
     # process setting
-    def popSetting(self, processName:str):
+    def popSetting(self, processName: str):
         if processName == 'fillNA':
             dialog = fillNADialog(self.pq, parent=self)
             dialog.show()
-            dialog.accepted.connect(lambda :self.addDataProcess(*dialog.addProcess()))
+            dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
         if processName == 'logTrans':
             dialog = logTransformDialog(self.pq, parent=self)
             dialog.show()
-            dialog.accepted.connect(lambda :self.addDataProcess(*dialog.addProcess()))
+            dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
+
+    def addDelay(self):
+        index = self.pq.addProcess(time.sleep, {'seconds': 10})
+        self.pq.addDescribe(index, 'Delay', 'Delay: sleep 10s')
+        self.processTabModel.addProcess()
+
+    def addToQueue(self):
+        processList = GENERAL.get_value('PROCESS_LIST')
+        processList = list(processList)
+        processList.append(self.pq)
+        GENERAL.set_value('PROCESS_LIST', processList)
+        QMessageBox.information(self, 'Add Process', 'Add Process To Process List', QMessageBox.Ok)
+
 
 class NavigationToolbar(NavigationToolbar2QT):
     def __init__(self, *args, **kwargs):
