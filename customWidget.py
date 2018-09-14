@@ -19,7 +19,7 @@ from PyQt5.QtCore import QUrl, pyqtSlot
 from PyQt5.QtGui import QGuiApplication
 from PyQt5 import QtGui
 from customLayout import FlowLayout
-from process import processQueue
+from process import processQueue, QtReceiver
 
 from model import ml_model, modelResult
 import GENERAL
@@ -947,6 +947,7 @@ class queueTabWidget(QWidget):
         self.mainList = QListWidget(self)
         self.mainLayout.addWidget(self.mainList)
         self.processList = GENERAL.get_value('PROCESS_LIST')
+        self.manageProcess = GENERAL.get_value('PROCESS_MANAGER')
         self.initProcessList()
 
     def initProcessList(self):
@@ -976,6 +977,7 @@ class queueTabWidget(QWidget):
         runButton.setIcon(QIcon('./res/RunQueue.ico'))
         runButton.setToolTip('Run Process')
         runButton.setStatusTip('Run Process')
+        runButton.clicked.connect(lambda :self.runProcess(pq))
         pauseButton = QPushButton(self)
         pauseButton.setIcon(QIcon('./res/PauseQueue.ico'))
         pauseButton.setToolTip('Pause Process')
@@ -1025,6 +1027,12 @@ class queueTabWidget(QWidget):
         self.mainList.addItem(listWidgetItem)
         listWidgetItem.setSizeHint(item.sizeHint())
         self.mainList.setItemWidget(listWidgetItem, item)
+
+    def runProcess(self, pq):
+        sendQ, recvQ = self.manageProcess.getProcessCOMQ(len(self.processList)-1)
+        t = QtReceiver(sendQ, pq)
+        t.start()
+        pq.start()
 
 
 class ImageViewer(QWidget):
@@ -1252,9 +1260,11 @@ class customProcessModel(QAbstractTableModel):
         return self.empty
 
     def loadQueue(self, PQ: processQueue):
+        self.beginResetModel()
         self.processQ = PQ.processQ
         self.processInfo = PQ.processInfo
         self.rows = PQ.count
+        self.endResetModel()
 
     def rowCount(self, parent=None, *args, **kwargs):
         return self.rows

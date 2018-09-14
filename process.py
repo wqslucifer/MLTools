@@ -134,18 +134,23 @@ class processQueue(Process):
         self.doProcess()
 
     def doProcess(self):
+        self.getProcessInfo()
+        #self.sendQueue.put((self, self.pid))
         for processQueueID, func, param in self.processQ:
-            self.currentProcessIndex=processQueueID
-            self.sendQueue.put('RUN:'+str(self.currentProcessIndex))
+            self.currentProcessIndex = processQueueID
+            self.sendQueue.put('RUN:' + str(self.currentProcessIndex))
+            print('run:', func)
+            print('current pid:', self.pid)
             func(**param)
-            self.sendQueue.put('FINISHED:'+str(self.currentProcessIndex))
+            print('FIN')
+            self.sendQueue.put('FINISHED:' + str(self.currentProcessIndex))
 
     # data process func
     def fillNA(self, applyFeatures, applyRows, method, value):
         try:
             targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
             for d in targetList:
-                if method=='FILL_VALUE':
+                if method == 'FILL_VALUE':
                     d.loc[applyRows, applyFeatures].fillna(value=value, inplace=True)
         except Exception as e:
             return e
@@ -155,18 +160,21 @@ class processQueue(Process):
     def dataTransform(self, applyFeatures, applyRows, method):
         targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
         for d in targetList:
-            if method=='RECIPROCAL':
-                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:1/(x+1))
-            elif method=='LOG_10':
-                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.log10(x))
-            elif method=='LOG_2':
-                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.log2(x))
-            elif method=='LOG_E':
-                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.log(x))
-            elif method=='SQUARE_ROOT':
-                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.sqrt(x))
-            elif method=='CUBE_ROOT':
-                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x:np.cbrt(x))
+            if method == 'RECIPROCAL':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: 1 / (x + 1))
+            elif method == 'LOG_10':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.log10(x))
+            elif method == 'LOG_2':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.log2(x))
+            elif method == 'LOG_E':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.log(x))
+            elif method == 'SQUARE_ROOT':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.sqrt(x))
+            elif method == 'CUBE_ROOT':
+                d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.cbrt(x))
+
+    def sleep(self, seconds):
+        time.sleep(seconds)
 
     # image process func
     def resizeImage(self, size):
@@ -194,29 +202,33 @@ class MyReceiver(Thread):
         self.target = target
 
     def run(self):
-        print('thread start')
+        print('MyReceiver start')
         while self.target.is_alive():
             while not self.queue.empty():
                 text = self.queue.get()
                 print(text)
-        print('thread end')
+        print('MyReceiver end')
 
 
 class QtReceiver(QThread):
     mysignal = pyqtSignal(str)
-
     def __init__(self, queue, target):
         super(QtReceiver, self).__init__()
         self.queue = queue
         self.target = target
+        self.targetAlive = False
 
     def run(self):
-        while True:  # self.target.is_alive()
+        while True and not self.targetAlive:
+            if self.target.is_alive():
+                self.targetAlive = True
+
+        while self.target.is_alive():  #self.target.is_alive()
             while not self.queue.empty():
                 text = self.queue.get()
-                # self.mysignal.emit(text)
+                #self.mysignal.emit(text)
                 print(text)
-        # print('process end')
+        print('process end')
 
 
 class ImageData:

@@ -1,31 +1,37 @@
 import os
-from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
-    QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
-    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
-    QHeaderView, QRadioButton, QButtonGroup,QMessageBox
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
-    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
-    QCursor, QDrag, QStandardItem
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
-from customLayout import FlowLayout
-
-from SwitchButton import switchButton
-import pandas as pd
-import numpy as np
-import subprocess
-import logging
-import threading
-import gc
+import sys
+import json
 import time
-import datetime
+from PyQt5 import QtCore
 from multiprocessing import Queue
+from process import QtReceiver,MyReceiver
+from PyQt5.QtCore import QThread, pyqtSignal,QObject
+import GENERAL
 
-from model import xgbModel
+class manageProcess:
+    def __init__(self):
+        self.processList = list()
+        self.processCOMDir = dict()
+        self.processPIDDir = dict()
+        self.sendQueueList = list()
+        self.recvQueueList = list()
+        self.receiverList = list()
 
-import seaborn as sns
-from process import processQueue
+    def setProcessList(self, processList):
+        self.processList = processList
 
+    def setCOMDir(self, processListIndex):
+        sendQ = Queue(5)
+        recvQ = Queue(5)
+        self.sendQueueList.append(sendQ)
+        self.recvQueueList.append(recvQ)
+        self.processCOMDir[processListIndex] = sendQ, recvQ
+        return sendQ, recvQ
+
+    def setPIDDir(self, pq, PID):
+        processListIndex = self.processList.index(pq)
+        self.processPIDDir[processListIndex] = PID
+
+    def getProcessCOMQ(self, processListIndex):
+        return self.processCOMDir[processListIndex]
 

@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
     QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
-    QHeaderView,QMessageBox
+    QHeaderView, QMessageBox
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from process import processQueue
 import GENERAL
+from management import manageProcess
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -99,6 +100,7 @@ class DataTabWidget(QWidget):
         self.plotLayout = FlowLayout()
         self.pq = processQueue()
         self.processTabModel = customProcessModel(self)
+        # GENERAL.set_value('PROCESS_MANAGER', self.processManager)
 
         self.mainTab = QTabWidget(self)
         self.outputTab = CollapsibleTabWidget(self.Horizontal, self)
@@ -592,12 +594,13 @@ class DataTabWidget(QWidget):
 
         # add to queue
         addToQueueButton = QPushButton('add to Queue', self)
-        addToQueueButton.clicked.connect(lambda :self.addToQueue())
+        addToQueueButton.clicked.connect(lambda: self.addToQueue())
 
         layout.addWidget(fillNAButton)
         layout.addWidget(logTransformButton)
         layout.addWidget(sleepDelayButton)
         layout.addStretch(10)
+        layout.addWidget(addToQueueButton)
 
     def initDataExplorer(self, filename):
         # load data
@@ -810,9 +813,6 @@ class DataTabWidget(QWidget):
         t.setAlternatingRowColors(True)
         t.setFocusPolicy(Qt.NoFocus)
 
-        sendQueue = Queue(5)
-        receiveQueue = Queue(5)
-        self.pq.setSignalQueue(sendQueue, receiveQueue)
         self.processTabModel.loadQueue(self.pq)
         t.setModel(self.processTabModel)
         t.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -840,16 +840,23 @@ class DataTabWidget(QWidget):
             dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
 
     def addDelay(self):
-        index = self.pq.addProcess(time.sleep, {'seconds': 10})
+        index = self.pq.addProcess(self.pq.sleep, {'seconds': 10})
         self.pq.addDescribe(index, 'Delay', 'Delay: sleep 10s')
         self.processTabModel.addProcess()
 
     def addToQueue(self):
+        processManager = GENERAL.get_value('PROCESS_MANAGER')
         processList = GENERAL.get_value('PROCESS_LIST')
-        processList = list(processList)
         processList.append(self.pq)
+        sendQueue, receiveQueue = processManager.setCOMDir(len(processList) - 1)
+        self.pq.setSignalQueue(sendQueue, receiveQueue)
         GENERAL.set_value('PROCESS_LIST', processList)
         QMessageBox.information(self, 'Add Process', 'Add Process To Process List', QMessageBox.Ok)
+        self.pq = processQueue()
+        self.pq.setData(self.dataType, self.dataFrame)
+        self.processTabModel.loadQueue(self.pq)
+        processManager.setProcessList(processList)
+        GENERAL.set_value('PROCESS_MANAGER', processManager)
 
 
 class NavigationToolbar(NavigationToolbar2QT):

@@ -24,7 +24,7 @@ from SwitchButton import switchButton
 from model import ml_model
 from project import ml_project
 from multiprocessing import Queue
-
+from management import manageProcess
 import GENERAL
 
 GENERAL.init()
@@ -54,6 +54,7 @@ class MainFrame(QMainWindow):
         self.fullProjectDir = None
         self.MLModels = list()
         self.localsetting = dict()
+        self.processManager = manageProcess()
         # start tab
         self.startTab = None
         self.startTabLayout = FlowLayout()
@@ -160,6 +161,7 @@ class MainFrame(QMainWindow):
         GENERAL.set_value('PROJECT_HOME', self.MLProject.projectDir)
         GENERAL.set_value('PROJECT', self.MLProject)
         GENERAL.set_value('PROCESS_LIST', self.MLProject.processList)
+        GENERAL.set_value('PROCESS_MANAGER', self.processManager)
         self.openProject(self.MLProject.projectFile)
 
     def openProjectDialog(self):
@@ -412,6 +414,7 @@ class MainFrame(QMainWindow):
         GENERAL.set_value('PROJECT_HOME', self.MLProject.projectDir)
         GENERAL.set_value('PROJECT', self.MLProject)
         GENERAL.set_value('PROCESS_LIST', self.MLProject.processList)
+        GENERAL.set_value('PROCESS_MANAGER', self.processManager)
         # init local variable
         self.fullProjectDir = self.MLProject.projectDir
         self.initUI_Project()
