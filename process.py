@@ -135,15 +135,17 @@ class processQueue(Process):
 
     def doProcess(self):
         self.getProcessInfo()
-        #self.sendQueue.put((self, self.pid))
+        self.sendQueue.put('PID:' + str(self.pid))
+        self.sendQueue.put('RUN:')
+        print('RUN:', self.pid)
         for processQueueID, func, param in self.processQ:
             self.currentProcessIndex = processQueueID
-            self.sendQueue.put('RUN:' + str(self.currentProcessIndex))
-            print('run:', func)
-            print('current pid:', self.pid)
+            self.sendQueue.put('CUR_FUNC:'+str(self.currentProcessIndex))
+            self.sendQueue.put('PROGRESS:'+str(0))
             func(**param)
-            print('FIN')
-            self.sendQueue.put('FINISHED:' + str(self.currentProcessIndex))
+            self.sendQueue.put('PROGRESS:'+str(100))
+        self.sendQueue.put('FIN:')
+        print('FIN:',self.pid)
 
     # data process func
     def fillNA(self, applyFeatures, applyRows, method, value):
@@ -202,16 +204,15 @@ class MyReceiver(Thread):
         self.target = target
 
     def run(self):
-        print('MyReceiver start')
-        while self.target.is_alive():
+        while True:
             while not self.queue.empty():
                 text = self.queue.get()
                 print(text)
-        print('MyReceiver end')
 
 
 class QtReceiver(QThread):
     mysignal = pyqtSignal(str)
+
     def __init__(self, queue, target):
         super(QtReceiver, self).__init__()
         self.queue = queue
@@ -223,10 +224,10 @@ class QtReceiver(QThread):
             if self.target.is_alive():
                 self.targetAlive = True
 
-        while self.target.is_alive():  #self.target.is_alive()
+        while self.target.is_alive():  # self.target.is_alive()
             while not self.queue.empty():
                 text = self.queue.get()
-                #self.mysignal.emit(text)
+                self.mysignal.emit(text)
                 print(text)
         print('process end')
 

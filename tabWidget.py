@@ -3,11 +3,11 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
     QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
     QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
-    QHeaderView, QMessageBox
+    QHeaderView, QMessageBox, QProgressBar, QListWidgetItem
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
-    QCursor, QDrag, QStandardItem
+    QCursor, QDrag, QStandardItem, QIcon
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from customLayout import FlowLayout
@@ -31,7 +31,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import seaborn as sns
-from process import processQueue
+from process import processQueue, QtReceiver
 import GENERAL
 from management import manageProcess
 
@@ -58,6 +58,7 @@ def process_thread_pipe(process):
 class DataTabWidget(QWidget):
     Horizontal = 0
     Vertical = 1
+    addProcessQueue = pyqtSignal(processQueue)
 
     def __init__(self, filename):
         super(DataTabWidget, self).__init__()
@@ -851,12 +852,123 @@ class DataTabWidget(QWidget):
         sendQueue, receiveQueue = processManager.setCOMDir(len(processList) - 1)
         self.pq.setSignalQueue(sendQueue, receiveQueue)
         GENERAL.set_value('PROCESS_LIST', processList)
+        self.addProcessQueue.emit(self.pq)
         QMessageBox.information(self, 'Add Process', 'Add Process To Process List', QMessageBox.Ok)
         self.pq = processQueue()
         self.pq.setData(self.dataType, self.dataFrame)
         self.processTabModel.loadQueue(self.pq)
         processManager.setProcessList(processList)
         GENERAL.set_value('PROCESS_MANAGER', processManager)
+
+
+
+class queueTabWidget(QWidget):
+    def __init__(self, parent=None):
+        super(queueTabWidget, self).__init__(parent=parent)
+        self.mainLayout = QVBoxLayout(self)
+        self.mainList = QListWidget(self)
+        self.mainLayout.addWidget(self.mainList)
+        self.processList = GENERAL.get_value('PROCESS_LIST')
+        self.manageProcess = GENERAL.get_value('PROCESS_MANAGER')
+        self.empty = True
+
+    def initProcessList(self):
+        self.processList = GENERAL.get_value('PROCESS_LIST')
+        self.manageProcess = GENERAL.get_value('PROCESS_MANAGER')
+        if self.empty:
+            for pq in self.processList:
+                self.addProcess(pq)
+        else:
+            self.empty = False
+
+    def addProcess(self, pq: processQueue):
+        item = QWidget(self)
+        itemLayout = QVBoxLayout(self)
+        item.setLayout(itemLayout)
+        item.setObjectName('MainItem')
+        item.setStyleSheet('QWidget#MainItem{border: 2px solid}')
+
+        header = QWidget(self)
+        headerLayout = QHBoxLayout(self)
+        header.setLayout(headerLayout)
+        header.setStyleSheet('border-bottom: 2px solid')
+        if pq.pid:
+            PID = QLabel('%d' % pq.pid, self)
+        else:
+            PID = QLabel('PID', self)
+        PID.setFixedWidth(25)
+        PID.setAlignment(Qt.AlignCenter)
+        typeLabel = QLabel('Process Queue', self)
+        typeLabel.setFixedWidth(150)
+        runButton = QPushButton(self)
+        runButton.setIcon(QIcon('./res/RunQueue.ico'))
+        runButton.setToolTip('Run Process')
+        runButton.setStatusTip('Run Process')
+        runButton.clicked.connect(lambda: self.runProcess(pq))
+        pauseButton = QPushButton(self)
+        pauseButton.setIcon(QIcon('./res/PauseQueue.ico'))
+        pauseButton.setToolTip('Pause Process')
+        pauseButton.setStatusTip('Pause Process')
+        stopButton = QPushButton(self)
+        stopButton.setIcon(QIcon('./res/StopQueue.ico'))
+        stopButton.setToolTip('Stop Process')
+        stopButton.setStatusTip('Stop Process')
+        headerLayout.addWidget(PID)
+        headerLayout.addWidget(typeLabel)
+        headerLayout.addWidget(runButton)
+        headerLayout.addWidget(pauseButton)
+        headerLayout.addWidget(stopButton)
+        headerLayout.addStretch(1)
+        itemLayout.addWidget(header)
+
+        count = 0
+        for id_, func, param in pq.processQ:
+            name, describe = pq.processInfo[id_]
+            _itemLayout = QHBoxLayout(self)
+            _item = QWidget(self)
+            _item.setLayout(_itemLayout)
+            idLabel = QLabel('%d' % count, self)
+            idLabel.setAlignment(Qt.AlignCenter)
+            idLabel.setFixedWidth(25)
+            processName = QLabel('%s' % name)
+            processName.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            processDescribe = QLabel('%s' % describe)
+            processDescribe.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+            progressBar = QProgressBar(self)
+            progressBar.setOrientation(Qt.Horizontal)
+            progressBar.setMinimum(0)
+            progressBar.setMaximum(100)
+            progressBar.setValue(0)
+            progressBar.setFormat('process name：%d%%' % 100)
+
+            _itemLayout.addWidget(idLabel, stretch=1)
+            _itemLayout.addWidget(processName, stretch=4)
+            _itemLayout.addWidget(processDescribe, stretch=10)
+            _itemLayout.addWidget(progressBar, stretch=10)
+
+            itemLayout.addWidget(_item)
+            count += 1
+
+        listWidgetItem = QListWidgetItem(self.mainList)
+        self.mainList.addItem(listWidgetItem)
+        listWidgetItem.setSizeHint(item.sizeHint())
+        self.mainList.setItemWidget(listWidgetItem, item)
+        self.empty = False
+
+    def runProcess(self, pq):
+        sendQ, recvQ = self.manageProcess.getProcessCOMQ(len(self.processList) - 1)
+        t = QtReceiver(sendQ, pq)
+        t.mysignal.connect(self.signalProcess)
+        t.start()
+        pq.start()
+
+    def signalProcess(self, signalText: str):
+        processAction, value = signalText.split(':')
+        if processAction in ['RUN', 'FIN']:
+            pass
+        elif processAction == 'PROGRESS':
+            pass
 
 
 class NavigationToolbar(NavigationToolbar2QT):

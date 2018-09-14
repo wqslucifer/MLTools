@@ -12,10 +12,10 @@ from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
-    HistoryWidget, queueTabWidget, ImageDataWidget
+    HistoryWidget, ImageDataWidget
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget, \
-    ImageDataTabWidget
+    ImageDataTabWidget,queueTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtQuick import QQuickView
 from PyQt5.QtCore import QUrl, QEvent
@@ -76,7 +76,8 @@ class MainFrame(QMainWindow):
         self.initTabAndExplorer()
 
         # local variable
-        self.queueTab = None
+        self.queueTab = queueTabWidget(self)
+        self.queueTab.hide()
 
     def initUI(self):
         # set main layout and splitter
@@ -306,6 +307,7 @@ class MainFrame(QMainWindow):
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
         dw = DataTabWidget(dataFile)
+        dw.addProcessQueue.connect(self.queueTab.addProcess)
         self.updateDataTab.connect(dw.updateSplitter)
         self.tabList.append(dw)
         scrollarea.setWidget(dw)
@@ -359,7 +361,7 @@ class MainFrame(QMainWindow):
         if not self.MLProject:
             QMessageBox.information(None, "No Project Found", "Please Open A Project", QMessageBox.Ok)
             return
-        if self.queueTab:
+        if self.queueTab.isVisible():
             return
 
         scrollarea = QScrollArea(self)
@@ -369,7 +371,8 @@ class MainFrame(QMainWindow):
         self.tabWindow.addTab(scrollarea, 'Queue')
         self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
         # add tab detail widget to scroll area
-        self.queueTab = queueTabWidget(self)
+        self.queueTab.initProcessList()
+        self.queueTab.show()
         scrollarea.setWidget(self.queueTab)
         self.tabList.append(self.queueTab)
 
@@ -487,8 +490,7 @@ class MainFrame(QMainWindow):
             self.tabList.remove(temp)
             self.tabWindow.removeTab(index)
             if isinstance(temp, queueTabWidget):
-                self.queueTab = None
-            del temp
+                self.queueTab = temp
 
     def onPopNewIpythonTab(self, value):
         self.popNewIpythonTab = value
