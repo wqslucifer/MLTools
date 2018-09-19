@@ -126,6 +126,7 @@ class DataTabWidget(QWidget):
         self.toolset.addItem(self.tools_dataInfo, 'Data Info')
         self.toolset.addItem(self.tools_process, 'Data Process')
         self.toolset.addItem(self.tools_visualize, 'Data Visualize')
+        self.toolset.currentChanged.connect(self.jumpToPQ)
         # init data window
         self.initDataExplorer(self.filename)
         self.dataWindowLayout.addWidget(self.dataExplorer)
@@ -867,6 +868,11 @@ class DataTabWidget(QWidget):
         self.processTabModel.loadQueue(self.pq)
         self.jumpToPQTab.emit()
 
+    def jumpToPQ(self, index):
+        if index == 2:
+            self.mainTab.setCurrentIndex(2)
+
+
 class queueTabWidget(QWidget):
     def __init__(self, parent=None):
         super(queueTabWidget, self).__init__(parent=parent)
@@ -947,7 +953,7 @@ class queueTabWidget(QWidget):
             progressBar.setMaximum(100)
             progressBar.setValue(0)
             progressBar.setFormat('0%')
-            progressBar.setObjectName('progressBar_'+str(id_))
+            progressBar.setObjectName('progressBar_' + str(id_))
 
             _itemLayout.addWidget(idLabel, stretch=1)
             _itemLayout.addWidget(processName, stretch=4)
@@ -978,9 +984,9 @@ class queueTabWidget(QWidget):
             _, processID, currentProcessIndex, totalProgress = signalObj
             processListIndex, _ = self.manageProcess.processIDDir[processID]
             item = self.mainList.itemWidget(self.mainList.item(processListIndex))
-            widget = item.findChild(QProgressBar, 'progressBar_'+str(currentProcessIndex))
+            widget = item.findChild(QProgressBar, 'progressBar_' + str(currentProcessIndex))
             widget.setValue(totalProgress)
-            widget.setFormat('%d%%'%totalProgress)
+            widget.setFormat('%d%%' % totalProgress)
         elif processAction == 'PID':
             processID = signalObj[1]
             pid = signalObj[2]

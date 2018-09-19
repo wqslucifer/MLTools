@@ -201,7 +201,7 @@ class processQueue(Process):
         self.parentPID = os.getppid()
 
     def idGen(self):
-        return str(base64.b64encode(time.ctime().encode('utf-8')),'utf-8')
+        return str(base64.b64encode(time.ctime().encode('utf-8')), 'utf-8')
 
 
 class MyReceiver(Thread):
