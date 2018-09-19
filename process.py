@@ -1,6 +1,7 @@
 import os
 import gc
 import time
+import base64
 import cv2
 import numpy as np
 import pandas as pd
@@ -27,6 +28,7 @@ class processQueue(Process):
         self.categoricalFeatures = None
         self.saveData = None
         self.count = 0
+        self.id = self.idGen()
         # comm data
         self.monitor = None
         self.sendQueue = None
@@ -135,17 +137,19 @@ class processQueue(Process):
 
     def doProcess(self):
         self.getProcessInfo()
-        self.sendQueue.put('PID:' + str(self.pid))
-        self.sendQueue.put('RUN:')
+        self.sendQueue.put(('PID', self.id, self.pid))
+        self.sendQueue.put(('RUN', self.id, None))
         print('RUN:', self.pid)
         for processQueueID, func, param in self.processQ:
+            totalProgress = 0
             self.currentProcessIndex = processQueueID
-            self.sendQueue.put('CUR_FUNC:'+str(self.currentProcessIndex))
-            self.sendQueue.put('PROGRESS:'+str(0))
+            self.sendQueue.put(('CUR_FUNC', self.id, self.currentProcessIndex))
+            self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 0))
             func(**param)
-            self.sendQueue.put('PROGRESS:'+str(100))
-        self.sendQueue.put('FIN:')
-        print('FIN:',self.pid)
+            self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 100))
+            print(self.currentProcessIndex, totalProgress)
+        self.sendQueue.put(('FIN', self.id, None))
+        print('FIN:', self.pid)
 
     # data process func
     def fillNA(self, applyFeatures, applyRows, method, value):
@@ -196,6 +200,9 @@ class processQueue(Process):
         self.PID = os.getpid()
         self.parentPID = os.getppid()
 
+    def idGen(self):
+        return str(base64.b64encode(time.ctime().encode('utf-8')),'utf-8')
+
 
 class MyReceiver(Thread):
     def __init__(self, queue: Queue, target):
@@ -211,7 +218,7 @@ class MyReceiver(Thread):
 
 
 class QtReceiver(QThread):
-    mysignal = pyqtSignal(str)
+    mysignal = pyqtSignal(object)
 
     def __init__(self, queue, target):
         super(QtReceiver, self).__init__()
@@ -226,9 +233,8 @@ class QtReceiver(QThread):
 
         while self.target.is_alive():  # self.target.is_alive()
             while not self.queue.empty():
-                text = self.queue.get()
-                self.mysignal.emit(text)
-                print(text)
+                obj = self.queue.get()
+                self.mysignal.emit(obj)
         print('process end')
 
 

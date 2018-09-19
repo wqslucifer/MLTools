@@ -851,16 +851,16 @@ class DataTabWidget(QWidget):
         processList.append(self.pq)
         sendQueue, receiveQueue = processManager.setCOMDir(len(processList) - 1)
         self.pq.setSignalQueue(sendQueue, receiveQueue)
+        processManager.setProcessList(processList)
+        processManager.setIDDir(self.pq.id, self.pq)
         GENERAL.set_value('PROCESS_LIST', processList)
+        GENERAL.set_value('PROCESS_MANAGER', processManager)
         self.addProcessQueue.emit(self.pq)
         QMessageBox.information(self, 'Add Process', 'Add Process To Process List', QMessageBox.Ok)
+
         self.pq = processQueue()
         self.pq.setData(self.dataType, self.dataFrame)
         self.processTabModel.loadQueue(self.pq)
-        processManager.setProcessList(processList)
-        GENERAL.set_value('PROCESS_MANAGER', processManager)
-
-
 
 class queueTabWidget(QWidget):
     def __init__(self, parent=None):
@@ -896,8 +896,9 @@ class queueTabWidget(QWidget):
             PID = QLabel('%d' % pq.pid, self)
         else:
             PID = QLabel('PID', self)
-        PID.setFixedWidth(25)
+        PID.setFixedWidth(35)
         PID.setAlignment(Qt.AlignCenter)
+        PID.setObjectName('PID')
         typeLabel = QLabel('Process Queue', self)
         typeLabel.setFixedWidth(150)
         runButton = QPushButton(self)
@@ -940,7 +941,8 @@ class queueTabWidget(QWidget):
             progressBar.setMinimum(0)
             progressBar.setMaximum(100)
             progressBar.setValue(0)
-            progressBar.setFormat('process name：%d%%' % 100)
+            progressBar.setFormat('0%')
+            progressBar.setObjectName('progressBar_'+str(id_))
 
             _itemLayout.addWidget(idLabel, stretch=1)
             _itemLayout.addWidget(processName, stretch=4)
@@ -963,12 +965,24 @@ class queueTabWidget(QWidget):
         t.start()
         pq.start()
 
-    def signalProcess(self, signalText: str):
-        processAction, value = signalText.split(':')
+    def signalProcess(self, signalObj: object):
+        processAction = signalObj[0]
         if processAction in ['RUN', 'FIN']:
             pass
         elif processAction == 'PROGRESS':
-            pass
+            _, processID, currentProcessIndex, totalProgress = signalObj
+            processListIndex, _ = self.manageProcess.processIDDir[processID]
+            item = self.mainList.itemWidget(self.mainList.item(processListIndex))
+            widget = item.findChild(QProgressBar, 'progressBar_'+str(currentProcessIndex))
+            widget.setValue(totalProgress)
+            widget.setFormat('%d%%'%totalProgress)
+        elif processAction == 'PID':
+            processID = signalObj[1]
+            pid = signalObj[2]
+            processListIndex, _ = self.manageProcess.processIDDir[processID]
+            item = self.mainList.itemWidget(self.mainList.item(processListIndex))
+            widget = item.findChild(QLabel, 'PID')
+            widget.setText(str(pid))
 
 
 class NavigationToolbar(NavigationToolbar2QT):

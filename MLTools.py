@@ -12,7 +12,7 @@ from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
-    HistoryWidget, ImageDataWidget
+    HistoryWidget, ImageDataWidget,QTreeWidgetItem
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget, \
     ImageDataTabWidget,queueTabWidget
@@ -430,6 +430,10 @@ class MainFrame(QMainWindow):
         # clean start tab, switch to project start page
         self.tabWindow.removeTab(0)
         self.initProjectTab()
+        # init file explorer tree
+        rootItem = QTreeWidgetItem(self.fileExplorer)
+        rootItem.setText(0, self.MLProject.projectDir)
+        self.initFileTree(rootItem, self.MLProject.projectDir)
 
     def initUI_Project(self):
         # init models
@@ -535,6 +539,18 @@ class MainFrame(QMainWindow):
 
     def runQueue(self):
         pass
+
+    def initFileTree(self, root, curDir):
+        curDirList = os.listdir(curDir)
+        for file in curDirList:
+            path = os.path.join(curDir, file)
+            if os.path.isdir(path):
+                dirItem = QTreeWidgetItem(root)
+                dirItem.setText(0, file)
+                self.initFileTree(dirItem, path)
+            if os.path.isfile(path):
+                fileItem = QTreeWidgetItem(root)
+                fileItem.setText(0, file)
 
 
 class createModelDialog(QDialog):
