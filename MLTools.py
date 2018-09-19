@@ -12,10 +12,10 @@ from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
 from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
-    HistoryWidget, ImageDataWidget,QTreeWidgetItem
+    HistoryWidget, ImageDataWidget, QTreeWidgetItem
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget, \
-    ImageDataTabWidget,queueTabWidget
+    ImageDataTabWidget, queueTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtQuick import QQuickView
 from PyQt5.QtCore import QUrl, QEvent
@@ -55,6 +55,7 @@ class MainFrame(QMainWindow):
         self.MLModels = list()
         self.localsetting = dict()
         self.processManager = manageProcess()
+        self.queueTabIndex = None
         # start tab
         self.startTab = None
         self.startTabLayout = FlowLayout()
@@ -308,6 +309,7 @@ class MainFrame(QMainWindow):
         # add tab detail widget to scroll area
         dw = DataTabWidget(dataFile)
         dw.addProcessQueue.connect(self.queueTab.addProcess)
+        dw.jumpToPQTab.connect(self.doJumpToPQTab)
         self.updateDataTab.connect(dw.updateSplitter)
         self.tabList.append(dw)
         scrollarea.setWidget(dw)
@@ -375,7 +377,7 @@ class MainFrame(QMainWindow):
         self.queueTab.show()
         scrollarea.setWidget(self.queueTab)
         self.tabList.append(self.queueTab)
-
+        self.queueTabIndex = len(self.tabList) - 1
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -434,6 +436,7 @@ class MainFrame(QMainWindow):
         rootItem = QTreeWidgetItem(self.fileExplorer)
         rootItem.setText(0, self.MLProject.projectDir)
         self.initFileTree(rootItem, self.MLProject.projectDir)
+        self.fileExplorer.expandItem(rootItem)
 
     def initUI_Project(self):
         # init models
@@ -489,6 +492,8 @@ class MainFrame(QMainWindow):
                                 break
             elif isinstance(self.tabList[index], QWebEngineView):
                 pass
+            if index == self.queueTabIndex:
+                self.queueTabIndex = None
             self.tabList[index].close()
             temp = self.tabList[index]
             self.tabList.remove(temp)
@@ -551,6 +556,13 @@ class MainFrame(QMainWindow):
             if os.path.isfile(path):
                 fileItem = QTreeWidgetItem(root)
                 fileItem.setText(0, file)
+
+    def doJumpToPQTab(self):
+        # self.tabWindow.setCurrentIndex(self.queueTabIndex)
+        if self.queueTabIndex:
+            self.tabWindow.setCurrentIndex(self.queueTabIndex)
+        else:
+            self.addQueueTab()
 
 
 class createModelDialog(QDialog):

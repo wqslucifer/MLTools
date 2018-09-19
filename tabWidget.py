@@ -59,6 +59,7 @@ class DataTabWidget(QWidget):
     Horizontal = 0
     Vertical = 1
     addProcessQueue = pyqtSignal(processQueue)
+    jumpToPQTab = pyqtSignal()
 
     def __init__(self, filename):
         super(DataTabWidget, self).__init__()
@@ -846,6 +847,9 @@ class DataTabWidget(QWidget):
         self.processTabModel.addProcess()
 
     def addToQueue(self):
+        if len(self.pq.processQ) == 0:
+            QMessageBox.information(self, 'Empty Process', 'Please Add Process', QMessageBox.Ok)
+            return
         processManager = GENERAL.get_value('PROCESS_MANAGER')
         processList = GENERAL.get_value('PROCESS_LIST')
         processList.append(self.pq)
@@ -861,6 +865,7 @@ class DataTabWidget(QWidget):
         self.pq = processQueue()
         self.pq.setData(self.dataType, self.dataFrame)
         self.processTabModel.loadQueue(self.pq)
+        self.jumpToPQTab.emit()
 
 class queueTabWidget(QWidget):
     def __init__(self, parent=None):
