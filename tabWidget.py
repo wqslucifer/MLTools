@@ -5,9 +5,10 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBox
     QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
     QHeaderView, QMessageBox, QProgressBar, QListWidgetItem
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
-    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData
+    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData, QRegExp, QTextStream, \
+    QFile, QIODevice
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
-    QCursor, QDrag, QStandardItem, QIcon
+    QCursor, QDrag, QStandardItem, QIcon, QSyntaxHighlighter, QKeySequence, QTextCharFormat
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from customLayout import FlowLayout
@@ -994,6 +995,199 @@ class queueTabWidget(QWidget):
             item = self.mainList.itemWidget(self.mainList.item(processListIndex))
             widget = item.findChild(QLabel, 'PID')
             widget.setText(str(pid))
+
+
+class scriptTabWidget(QWidget):
+    def __init__(self, scriptFile, parent=None):
+        super(scriptTabWidget, self).__init__(parent=parent)
+        self.scriptFile = scriptFile
+        self.editable = True
+        # widgets
+        self.mainLayout = QVBoxLayout(self)
+        self.editor = QTextEdit(self)
+        # init
+        self.initUI()
+
+    def initUI(self):
+        self.setLayout(self.mainLayout)
+        self.mainLayout.addWidget(self.editor)
+        self.loadFile()
+        font = QFont("Courier", 11)
+        font.setFixedPitch(True)
+        self.editor.setFont(font)
+        self.editor.setStyleSheet('background-color:#353535')
+        self.setHighLight()
+
+    def loadFile(self):
+        file = QFile(self.scriptFile)
+        flag = file.open(QFile.ReadWrite|QFile.Text)
+        if flag:
+            readStream = QTextStream(file)
+            self.editor.setText(readStream.readAll())
+            file.close()
+            del file
+        else:
+            QMessageBox.information(self, 'Error Message', 'Open File: ' + file.errorString(), QMessageBox.Ok)
+
+    def saveFile(self):
+        pass
+
+    def setHighLight(self):
+        if self.scriptFile.endswith('py'):
+            pythonHighlighter(self.editor)
+        else:
+            pass
+
+
+class pythonHighlighter(QSyntaxHighlighter):
+    Rules = []
+    Formats = {}
+
+    def __init__(self, parent=None):
+        super(pythonHighlighter, self).__init__(parent)
+        self.initializeFormats()
+
+        KEYWORDS = ["and", "as", "assert", "break", "class",
+                    "continue", "def", "del", "elif", "else", "except",
+                    "exec", "finally", "for", "from", "global", "if",
+                    "import", "in", "is", "lambda", "not", "or", "pass",
+                    "print", "raise", "return", "try", "while", "with",
+                    "yield"]
+        BUILTINS = ["abs", "all", "any", "basestring", "bool",
+                    "callable", "chr", "classmethod", "cmp", "compile",
+                    "complex", "delattr", "dict", "dir", "divmod",
+                    "enumerate", "eval", "execfile", "exit", "file",
+                    "filter", "float", "frozenset", "getattr", "globals",
+                    "hasattr", "hex", "id", "int", "isinstance",
+                    "issubclass", "iter", "len", "list", "locals", "map",
+                    "max", "min", "object", "oct", "open", "ord", "pow",
+                    "property", "range", "reduce", "repr", "reversed",
+                    "round", "set", "setattr", "slice", "sorted",
+                    "staticmethod", "str", "sum", "super", "tuple", "type",
+                    "vars", "zip"]
+        CONSTANTS = ["False", "True", "None", "NotImplemented",
+                     "Ellipsis"]
+
+        pythonHighlighter.Rules.append((QRegExp(
+            "|".join([r"\b%s\b" % keyword for keyword in KEYWORDS])),
+                                        "keyword"))
+        pythonHighlighter.Rules.append((QRegExp(
+            "|".join([r"\b%s\b" % builtin for builtin in BUILTINS])),
+                                        "builtin"))
+        pythonHighlighter.Rules.append((QRegExp(
+            "|".join([r"\b%s\b" % constant
+                      for constant in CONSTANTS])), "constant"))
+        pythonHighlighter.Rules.append((QRegExp(
+            r"\b[+-]?[0-9]+[lL]?\b"
+            r"|\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b"
+            r"|\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b"),
+                                        "number"))
+        pythonHighlighter.Rules.append((QRegExp(
+            r"\bPyQt4\b|\bQt?[A-Z][a-z]\w+\b"), "pyqt"))
+        pythonHighlighter.Rules.append((QRegExp(r"\b@\w+\b"),
+                                        "decorator"))
+        stringRe = QRegExp(r"""(?:'[^']*'|"[^"]*")""")
+        stringRe.setMinimal(True)
+        pythonHighlighter.Rules.append((stringRe, "string"))
+        self.stringRe = QRegExp(r"""(:?"["]".*"["]"|'''.*''')""")
+        self.stringRe.setMinimal(True)
+        pythonHighlighter.Rules.append((self.stringRe, "string"))
+        self.tripleSingleRe = QRegExp(r"""'''(?!")""")
+        self.tripleDoubleRe = QRegExp(r'''"""(?!')''')
+
+    @staticmethod
+    def initializeFormats():
+        baseFormat = QTextCharFormat()
+        baseFormat.setFontFamily("monospaced")
+        baseFormat.setFontPointSize(14)
+        for name, color in (("normal", Qt.white),
+                            ("keyword", '#C86E12'), ("builtin", Qt.white),
+                            ("constant", '#C86E12'),
+                            ("decorator", '#BFCB46'), ("comment", '#909090'),
+                            ("string", '#60A055'), ("number", '#46BECB'),
+                            ("error", Qt.darkRed), ("pyqt", Qt.darkCyan)):
+            format = QTextCharFormat(baseFormat)
+            format.setForeground(QColor(color))
+            if name in ("keyword", "decorator"):
+                format.setFontWeight(QFont.Bold)
+            if name == "comment":
+                format.setFontItalic(True)
+            pythonHighlighter.Formats[name] = format
+
+    def highlightBlock(self, text):
+        NORMAL, TRIPLESINGLE, TRIPLEDOUBLE, ERROR = range(4)
+
+        textLength = len(text)
+        prevState = self.previousBlockState()
+
+        self.setFormat(0, textLength,
+                       pythonHighlighter.Formats["normal"])
+
+        if text.startswith("Traceback") or text.startswith("Error: "):
+            self.setCurrentBlockState(ERROR)
+            self.setFormat(0, textLength,
+                           pythonHighlighter.Formats["error"])
+            return
+        if (prevState == ERROR and
+                not (text.startswith(sys.ps1) or text.startswith("#"))):
+            self.setCurrentBlockState(ERROR)
+            self.setFormat(0, textLength,
+                           pythonHighlighter.Formats["error"])
+            return
+
+        for regex, format in pythonHighlighter.Rules:
+            i = regex.indexIn(text)
+            while i >= 0:
+                length = regex.matchedLength()
+                self.setFormat(i, length,
+                               pythonHighlighter.Formats[format])
+                i = regex.indexIn(text, i + length)
+
+        # Slow but good quality highlighting for comments. For more
+        # speed, comment this out and add the following to __init__:
+        # pythonHighlighter.Rules.append((QRegExp(r"#.*"), "comment"))
+        if not text:
+            pass
+        elif text[0] == "#":
+            self.setFormat(0, len(text),
+                           pythonHighlighter.Formats["comment"])
+        else:
+            stack = []
+            for i, c in enumerate(text):
+                if c in ('"', "'"):
+                    if stack and stack[-1] == c:
+                        stack.pop()
+                    else:
+                        stack.append(c)
+                elif c == "#" and len(stack) == 0:
+                    self.setFormat(i, len(text),
+                                   pythonHighlighter.Formats["comment"])
+                    break
+
+        self.setCurrentBlockState(NORMAL)
+
+        if self.stringRe.indexIn(text) != -1:
+            return
+        # This is fooled by triple quotes inside single quoted strings
+        for i, state in ((self.tripleSingleRe.indexIn(text),
+                          TRIPLESINGLE),
+                         (self.tripleDoubleRe.indexIn(text),
+                          TRIPLEDOUBLE)):
+            if self.previousBlockState() == state:
+                if i == -1:
+                    i = text.length()
+                    self.setCurrentBlockState(state)
+                self.setFormat(0, i + 3,
+                               pythonHighlighter.Formats["string"])
+            elif i > -1:
+                self.setCurrentBlockState(state)
+                self.setFormat(i, text.length(),
+                               pythonHighlighter.Formats["string"])
+
+    def rehighlight(self):
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        QSyntaxHighlighter.rehighlight(self)
+        QApplication.restoreOverrideCursor()
 
 
 class NavigationToolbar(NavigationToolbar2QT):

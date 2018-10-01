@@ -15,7 +15,7 @@ from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, C
     HistoryWidget, ImageDataWidget, QTreeWidgetItem
 from customLayout import FlowLayout
 from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget, \
-    ImageDataTabWidget, queueTabWidget
+    ImageDataTabWidget, queueTabWidget, scriptTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtQuick import QQuickView
 from PyQt5.QtCore import QUrl, QEvent
@@ -331,9 +331,9 @@ class MainFrame(QMainWindow):
             scrollarea.setWidget(ipythonTab)
             self.tabList.append(ipythonTab)
         elif scriptFile.endswith('.py'):
-            # self.tabList.append()
-            pass
-            # scrollarea.setWidget(ScriptTabWidget(scriptFile))
+            scriptTab = scriptTabWidget(scriptFile, self)
+            scrollarea.setWidget(scriptTab)
+            self.tabList.append(scriptTab)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
