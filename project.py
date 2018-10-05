@@ -19,6 +19,7 @@ class ml_project:
 
         self.modelFiles = list() # *.md
         self.scriptFiles = list()  # python or jupyter notebook script list
+        self.functionList = list()
         self.imageDirs = list()
         self.pythonScripts = list()
         self.resultFiles = list()  # running result files list
@@ -89,6 +90,7 @@ class ml_project:
             newProject.dataFiles_csv = projectDict['dataFiles_csv']
             newProject.dataFiles_pkl = projectDict['dataFiles_pkl']
             newProject.describe_map = projectDict['describe_map']
+            newProject.functionList = projectDict['functionList']
             return newProject
 
     def dumpProject(self, projectFile):
@@ -105,6 +107,7 @@ class ml_project:
         projectDict['dataFiles_csv'] = self.dataFiles_csv
         projectDict['dataFiles_pkl'] = self.dataFiles_pkl
         projectDict['describe_map'] = self.describe_map
+        projectDict['functionList'] = self.functionList
         with open(os.path.join(self.projectDir, projectFile), 'w') as f:
             json.dump(projectDict, f)
 
