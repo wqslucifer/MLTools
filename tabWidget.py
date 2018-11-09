@@ -140,7 +140,7 @@ class DataTabWidget(QWidget):
         self.mainTab.addTab(self.dataWindow, 'Data Explorer')
         # init output window
         self.outputTab.addTab(self.outputEdit, 'Output')
-        self.outputTab.setSplitter(self.splitterMain)
+
         # init right lay out
         self.rightLayout.addWidget(self.splitterMain)
         self.splitterMain.addWidget(self.mainTab)
@@ -150,6 +150,8 @@ class DataTabWidget(QWidget):
         self.splitterMain.setCollapsible(0, False)
         self.splitterMain.setCollapsible(1, False)
         self.splitterMain.setSizes([10000, 0])  # move splitter to the bottom
+
+        self.outputTab.setSplitter(self.splitterMain)
 
         self.mainLayout.addWidget(self.toolset, 0, 0)
         self.mainLayout.addLayout(self.rightLayout, 0, 1)
@@ -801,7 +803,9 @@ class DataTabWidget(QWidget):
         self.dataExplorerPopMenu.exec(QCursor.pos())
 
     def updateSplitter(self):
-        if not self.outputTab.splitterLower:
+        if not self.outputTab.stackWidget.isVisible():
+            self.splitterMain.setSizes([10000, 0])
+        elif not self.outputTab.splitterLower:
             upper, lower = self.splitterMain.sizes()
             height = upper + lower
             self.splitterMain.setSizes([height * 3, height * 1])
