@@ -33,7 +33,16 @@
     <addaction name="separator"/>
     <addaction name="actionSetting"/>
    </widget>
+   <widget class="QMenu" name="menuModel_M">
+    <property name="title">
+     <string>Model(&amp;M)</string>
+    </property>
+    <addaction name="actionCreate_Model"/>
+    <addaction name="actionSave_Model"/>
+    <addaction name="actionManagement"/>
+   </widget>
    <addaction name="menuFile_F"/>
+   <addaction name="menuModel_M"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen_Project">
@@ -54,6 +63,21 @@
   <action name="actionSetting">
    <property name="text">
     <string>Setting</string>
+   </property>
+  </action>
+  <action name="actionCreate_Model">
+   <property name="text">
+    <string>Create Model</string>
+   </property>
+  </action>
+  <action name="actionManagement">
+   <property name="text">
+    <string>Management</string>
+   </property>
+  </action>
+  <action name="actionSave_Model">
+   <property name="text">
+    <string>Save Model</string>
    </property>
   </action>
  </widget>

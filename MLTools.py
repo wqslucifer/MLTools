@@ -20,6 +20,7 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtQuick import QQuickView
 from PyQt5.QtCore import QUrl, QEvent
 
+from CreateModel import createModelDialog
 from SwitchButton import switchButton
 from model import ml_model
 from project import ml_project
@@ -123,6 +124,7 @@ class MainFrame(QMainWindow):
         self.runQueueAction.triggered.connect(self.runQueue)
         self.toolBar.addAction(self.runQueueAction)
         # set menu
+        # file menu
         openProjectMenu = self.ui.actionOpen_Project
         openProjectMenu.triggered.connect(self.openProjectDialog)
         addFilesMenu = self.ui.actionAddFile
@@ -131,6 +133,11 @@ class MainFrame(QMainWindow):
         createProjectMenu.triggered.connect(self.createProject)
         settingMenu = self.ui.actionSetting
         settingMenu.triggered.connect(self.setting)
+        # model menu
+        createModelMenu = self.ui.actionCreate_Model
+        saveModelMenu = self.ui.actionSave_Model
+        modelManager = self.ui.actionManagement
+        createModelMenu.triggered.connect(self.createModel)
 
     def createProject(self):
         c = CreateProjectDialog()
@@ -381,15 +388,15 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
-    def newIpython(self, newview: QWebEngineView):
+    def newIpython(self, newView: QWebEngineView):
         if not self.popNewIpythonTab:
             scrollarea = QScrollArea(self)
             scrollarea.setWidgetResizable(True)
             scrollbar = QScrollBar(self)
             self.tabWindow.addTab(scrollarea, os.path.basename('newIp'))
             self.tabWindow.setCurrentIndex(self.tabWindow.indexOf(scrollarea))
-            self.tabList.append(newview)
-            scrollarea.setWidget(newview)
+            self.tabList.append(newView)
+            scrollarea.setWidget(newView)
             scrollarea.setVerticalScrollBar(scrollbar)
             scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -564,89 +571,88 @@ class MainFrame(QMainWindow):
         else:
             self.addQueueTab()
 
-
-class createModelDialog(QDialog):
-    def __init__(self, MLProject: ml_project):
-        super(createModelDialog, self).__init__()
-        self.setWindowIcon(QIcon('MLTool.ico'))
-        self.modelTypeList = ['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet']
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setFixedSize(600, 400)
-        self.dialogLayout = QVBoxLayout(self)
-        self.dialogLayout.setAlignment(Qt.AlignTop)
-        self.setLayout(self.dialogLayout)
-        self.dialogLayout.setSpacing(10)
-        self.MLProject = MLProject
-        # model type
-        self.comboBoxLayout = QHBoxLayout(self)
-        self.comboBox = QComboBox(self)
-        self.comboBox.addItem('xgboost', 'xgboost_model')
-        self.comboBox.addItem('lightgbm', 'lightgbm_model')
-        self.comboBox.addItem('linear model', 'linear_model')
-        self.comboBoxLayout.addWidget(QLabel('Model Type: ', self), 1)
-        self.comboBoxLayout.addWidget(self.comboBox, 5)
-        self.modelType = self.modelTypeList[self.comboBox.currentIndex()]
-        # model name
-        self.modelName = self.comboBox.currentData() + '.md'
-        self.modelNameLayout = QHBoxLayout(self)
-        self.modelNameEditor = QLineEdit(self)
-        self.modelNameEditor.setText(self.modelName)
-        self.modelNameLayout.addWidget(QLabel('Model Name: ', self), 1)
-        self.modelNameLayout.addWidget(self.modelNameEditor, 5)
-        # model save location
-        self.modelLocation = os.path.join(self.MLProject.projectDir, self.MLProject.modelDir)
-        self.modelLocationLayout = QHBoxLayout(self)
-        self.modelLocationEdit = QLineEdit(self)
-        self.modelLocationEdit.setText(os.path.join(self.modelLocation, self.modelName))
-        self.modelLocationBrowse = QPushButton('Browse', self)
-        self.modelLocationLayout.addWidget(QLabel('Model Location: ', self), 2)
-        self.modelLocationLayout.addWidget(self.modelLocationEdit, 8)
-        self.modelLocationLayout.addWidget(self.modelLocationBrowse, 2)
-        # confirm button
-        self.confirmButton = QPushButton('Confirm', self)
-        self.cancelButton = QPushButton('Cancel', self)
-        self.buttonLayout = QHBoxLayout(self)
-        self.buttonLayout.setAlignment(Qt.AlignRight)
-        self.buttonLayout.addWidget(self.confirmButton)
-        self.buttonLayout.addWidget(self.cancelButton)
-        self.buttonLayout.setContentsMargins(0, 0, 20, 20)
-
-        self.dialogLayout.addLayout(self.comboBoxLayout)
-        self.dialogLayout.addLayout(self.modelNameLayout)
-        self.dialogLayout.addLayout(self.modelLocationLayout)
-        self.dialogLayout.addStretch(10)
-        self.dialogLayout.addLayout(self.buttonLayout)
-
-        self.modelNameEditor.textChanged.connect(self.updateModelName)
-        self.modelLocationBrowse.clicked.connect(self.modelLocationDialog)
-        self.comboBox.currentIndexChanged.connect(self.updateDefaultModelName)
-        self.confirmButton.clicked.connect(self.onConfirm)
-        self.cancelButton.clicked.connect(self.onCancel)
-
-    def onConfirm(self):
-        self.done(QDialog.Accepted)
-
-    def onCancel(self):
-        self.done(QDialog.Rejected)
-
-    def updateModelName(self, newModelName):
-        self.modelName = newModelName
-        self.modelLocationEdit.setText(os.path.join(self.modelLocation, self.modelName))
-
-    def updateDefaultModelName(self, index):
-        self.modelName = self.comboBox.itemData(index) + '.md'
-        self.modelNameEditor.setText(self.modelName)
-        self.modelType = self.modelTypeList[index]
-
-    def modelLocationDialog(self):
-        dialog = QFileDialog(self)
-        options = QFileDialog.Options()
-        options |= QFileDialog.ShowDirsOnly
-        self.modelLocation = dialog.getExistingDirectory(self, "Modle Location",
-                                                         os.path.join(self.MLProject.projectDir,
-                                                                      self.MLProject.modelDir),
-                                                         options=options)
-        self.modelLocationEdit.setText(os.path.abspath(os.path.join(self.MLProject.projectDir, self.modelName)))
+# class createModelDialog(QDialog):
+#     def __init__(self, MLProject: ml_project):
+#         super(createModelDialog, self).__init__()
+#         self.setWindowIcon(QIcon('MLTool.ico'))
+#         self.modelTypeList = ['XGB', 'LGBM', 'RandomForest', 'LinearReg', 'LogisticReg', 'Ridge', 'Lasso', 'ElasticNet']
+#         self.setAttribute(Qt.WA_DeleteOnClose)
+#         self.setFixedSize(600, 400)
+#         self.dialogLayout = QVBoxLayout(self)
+#         self.dialogLayout.setAlignment(Qt.AlignTop)
+#         self.setLayout(self.dialogLayout)
+#         self.dialogLayout.setSpacing(10)
+#         self.MLProject = MLProject
+#         # model type
+#         self.comboBoxLayout = QHBoxLayout(self)
+#         self.comboBox = QComboBox(self)
+#         self.comboBox.addItem('xgboost', 'xgboost_model')
+#         self.comboBox.addItem('lightgbm', 'lightgbm_model')
+#         self.comboBox.addItem('linear model', 'linear_model')
+#         self.comboBoxLayout.addWidget(QLabel('Model Type: ', self), 1)
+#         self.comboBoxLayout.addWidget(self.comboBox, 5)
+#         self.modelType = self.modelTypeList[self.comboBox.currentIndex()]
+#         # model name
+#         self.modelName = self.comboBox.currentData() + '.md'
+#         self.modelNameLayout = QHBoxLayout(self)
+#         self.modelNameEditor = QLineEdit(self)
+#         self.modelNameEditor.setText(self.modelName)
+#         self.modelNameLayout.addWidget(QLabel('Model Name: ', self), 1)
+#         self.modelNameLayout.addWidget(self.modelNameEditor, 5)
+#         # model save location
+#         self.modelLocation = os.path.join(self.MLProject.projectDir, self.MLProject.modelDir)
+#         self.modelLocationLayout = QHBoxLayout(self)
+#         self.modelLocationEdit = QLineEdit(self)
+#         self.modelLocationEdit.setText(os.path.join(self.modelLocation, self.modelName))
+#         self.modelLocationBrowse = QPushButton('Browse', self)
+#         self.modelLocationLayout.addWidget(QLabel('Model Location: ', self), 2)
+#         self.modelLocationLayout.addWidget(self.modelLocationEdit, 8)
+#         self.modelLocationLayout.addWidget(self.modelLocationBrowse, 2)
+#         # confirm button
+#         self.confirmButton = QPushButton('Confirm', self)
+#         self.cancelButton = QPushButton('Cancel', self)
+#         self.buttonLayout = QHBoxLayout(self)
+#         self.buttonLayout.setAlignment(Qt.AlignRight)
+#         self.buttonLayout.addWidget(self.confirmButton)
+#         self.buttonLayout.addWidget(self.cancelButton)
+#         self.buttonLayout.setContentsMargins(0, 0, 20, 20)
+#
+#         self.dialogLayout.addLayout(self.comboBoxLayout)
+#         self.dialogLayout.addLayout(self.modelNameLayout)
+#         self.dialogLayout.addLayout(self.modelLocationLayout)
+#         self.dialogLayout.addStretch(10)
+#         self.dialogLayout.addLayout(self.buttonLayout)
+#
+#         self.modelNameEditor.textChanged.connect(self.updateModelName)
+#         self.modelLocationBrowse.clicked.connect(self.modelLocationDialog)
+#         self.comboBox.currentIndexChanged.connect(self.updateDefaultModelName)
+#         self.confirmButton.clicked.connect(self.onConfirm)
+#         self.cancelButton.clicked.connect(self.onCancel)
+#
+#     def onConfirm(self):
+#         self.done(QDialog.Accepted)
+#
+#     def onCancel(self):
+#         self.done(QDialog.Rejected)
+#
+#     def updateModelName(self, newModelName):
+#         self.modelName = newModelName
+#         self.modelLocationEdit.setText(os.path.join(self.modelLocation, self.modelName))
+#
+#     def updateDefaultModelName(self, index):
+#         self.modelName = self.comboBox.itemData(index) + '.md'
+#         self.modelNameEditor.setText(self.modelName)
+#         self.modelType = self.modelTypeList[index]
+#
+#     def modelLocationDialog(self):
+#         dialog = QFileDialog(self)
+#         options = QFileDialog.Options()
+#         options |= QFileDialog.ShowDirsOnly
+#         self.modelLocation = dialog.getExistingDirectory(self, "Modle Location",
+#                                                          os.path.join(self.MLProject.projectDir,
+#                                                                       self.MLProject.modelDir),
+#                                                          options=options)
+#         self.modelLocationEdit.setText(os.path.abspath(os.path.join(self.MLProject.projectDir, self.modelName)))
 
 
 class CreateProjectDialog(QDialog):
