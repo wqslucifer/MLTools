@@ -887,6 +887,9 @@ class DataTabWidget(QWidget):
         dialog = functionManagerDialog(self)
         dialog.show()
 
+    def collapseOutputTab(self):
+        self.outputTab.collapseStacks()
+
 
 class queueTabWidget(QWidget):
     def __init__(self, parent=None):

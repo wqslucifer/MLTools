@@ -21,6 +21,7 @@ from PyQt5.QtQuick import QQuickView
 from PyQt5.QtCore import QUrl, QEvent
 
 from CreateModel import createModelDialog
+from modelManager import modelManagerDialog
 from SwitchButton import switchButton
 from model import ml_model
 from project import ml_project
@@ -136,8 +137,10 @@ class MainFrame(QMainWindow):
         # model menu
         createModelMenu = self.ui.actionCreate_Model
         saveModelMenu = self.ui.actionSave_Model
+        saveModelMenu.setEnabled(False)
         modelManager = self.ui.actionManagement
         createModelMenu.triggered.connect(self.createModel)
+        modelManager.triggered.connect(self.openModelManager)
 
     def createProject(self):
         c = CreateProjectDialog()
@@ -322,6 +325,7 @@ class MainFrame(QMainWindow):
         scrollarea.setWidget(dw)
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        dw.collapseOutputTab()
 
     def addScriptTab(self, scriptFile: str):
         scrollarea = QScrollArea(self)
@@ -570,6 +574,14 @@ class MainFrame(QMainWindow):
             self.tabWindow.setCurrentIndex(self.queueTabIndex)
         else:
             self.addQueueTab()
+
+    def openModelManager(self):
+        dialog = modelManagerDialog(self.MLProject)
+        r = dialog.exec_()
+        if r == QDialog.Accepted:
+            newModel = ml_model(dialog.modelType, dialog.modelName, dialog.modelLocation)
+            self.MLModels.append(newModel)
+            newModel.update()
 
 # class createModelDialog(QDialog):
 #     def __init__(self, MLProject: ml_project):
