@@ -41,8 +41,15 @@
     <addaction name="actionSave_Model"/>
     <addaction name="actionManagement"/>
    </widget>
+   <widget class="QMenu" name="menuScript_S">
+    <property name="title">
+     <string>Process(&amp;P)</string>
+    </property>
+    <addaction name="actionProcess_Manager"/>
+   </widget>
    <addaction name="menuFile_F"/>
    <addaction name="menuModel_M"/>
+   <addaction name="menuScript_S"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen_Project">
@@ -78,6 +85,11 @@
   <action name="actionSave_Model">
    <property name="text">
     <string>Save Model</string>
+   </property>
+  </action>
+  <action name="actionProcess_Manager">
+   <property name="text">
+    <string>Process Manager</string>
    </property>
   </action>
  </widget>

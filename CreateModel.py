@@ -40,6 +40,8 @@ class createModelDialog(QDialog):
         self.bottomLayout = QHBoxLayout(self)
         self.nextButton = QPushButton('next', self)
         self.guide = guideWidget(self)
+        self.curIndex = 0
+        self.stackedList = []
         self.initUI()
 
     def initUI(self):
@@ -63,7 +65,34 @@ class createModelDialog(QDialog):
         self.guide.addLabel('Data Process')
         self.guide.addLabel('Model Param Setting')
         self.guide.addLabel('Finish')
-        self.guide.setLabelColor(0)
+        self.guide.setLabelColor(self.curIndex)
+
+        stackedWidget_1 = createModel_1(self)
+        self.stackedLayout.addWidget(stackedWidget_1)
+        self.stackedList.append(stackedWidget_1)
+        stackedWidget_2 = createModel_2(self)
+        self.stackedLayout.addWidget(stackedWidget_2)
+        self.stackedList.append(stackedWidget_2)
+        stackedWidget_3 = createModel_3(self)
+        self.stackedLayout.addWidget(stackedWidget_3)
+        self.stackedList.append(stackedWidget_3)
+        stackedWidget_4 = createModel_4(self)
+        self.stackedLayout.addWidget(stackedWidget_4)
+        self.stackedList.append(stackedWidget_4)
+        stackedWidget_5 = createModel_5(self)
+        self.stackedLayout.addWidget(stackedWidget_5)
+        self.stackedList.append(stackedWidget_5)
+        stackedWidget_6 = createModel_6(self)
+        self.stackedLayout.addWidget(stackedWidget_6)
+        self.stackedList.append(stackedWidget_6)
+
+        self.nextButton.clicked.connect(self.nextButtonClicked)
+
+    def nextButtonClicked(self):
+        self.curIndex += 1
+        self.guide.setLabelColor(self.curIndex)
+        self.stackedLayout.setCurrentIndex(self.curIndex)
+
 
 class guideWidget(QWidget):
     def __init__(self, parent=None):
@@ -95,3 +124,68 @@ class createModel_1(QWidget):
         super(createModel_1, self).__init__(parent=parent)
         self.mainLayout = QVBoxLayout(self)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.widget = QWidget(self)
+        self.mainLayout.addSpacing(50)
+        self.mainLayout.addWidget(self.widget)
+        self.mainLayout.addWidget(QLabel('1'))
+        self.widget.setStyleSheet('background-color:#ffffff;')
+
+
+class createModel_2(QWidget):
+    def __init__(self, parent):
+        super(createModel_2, self).__init__(parent=parent)
+        self.mainLayout = QVBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.widget = QWidget(self)
+        self.mainLayout.addSpacing(50)
+        self.mainLayout.addWidget(self.widget)
+        self.mainLayout.addWidget(QLabel('2'))
+        self.widget.setStyleSheet('background-color:#ffffff;')
+
+
+class createModel_3(QWidget):
+    def __init__(self, parent):
+        super(createModel_3, self).__init__(parent=parent)
+        self.mainLayout = QVBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.widget = QWidget(self)
+        self.mainLayout.addSpacing(50)
+        self.mainLayout.addWidget(self.widget)
+        self.mainLayout.addWidget(QLabel('3'))
+        self.widget.setStyleSheet('background-color:#ffffff;')
+
+
+class createModel_4(QWidget):
+    def __init__(self, parent):
+        super(createModel_4, self).__init__(parent=parent)
+        self.mainLayout = QVBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.widget = QWidget(self)
+        self.mainLayout.addSpacing(50)
+        self.mainLayout.addWidget(self.widget)
+        self.mainLayout.addWidget(QLabel('4'))
+        self.widget.setStyleSheet('background-color:#ffffff;')
+
+
+class createModel_5(QWidget):
+    def __init__(self, parent):
+        super(createModel_5, self).__init__(parent=parent)
+        self.mainLayout = QVBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.widget = QWidget(self)
+        self.mainLayout.addSpacing(50)
+        self.mainLayout.addWidget(self.widget)
+        self.mainLayout.addWidget(QLabel('5'))
+        self.widget.setStyleSheet('background-color:#ffffff;')
+
+
+class createModel_6(QWidget):
+    def __init__(self, parent):
+        super(createModel_6, self).__init__(parent=parent)
+        self.mainLayout = QVBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.widget = QWidget(self)
+        self.mainLayout.addSpacing(50)
+        self.mainLayout.addWidget(self.widget)
+        self.mainLayout.addWidget(QLabel('6'))
+        self.widget.setStyleSheet('background-color:#ffffff;')
