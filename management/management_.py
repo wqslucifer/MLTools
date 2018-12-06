@@ -1,12 +1,5 @@
-import os
-import sys
-import json
-import time
-from PyQt5 import QtCore
 from multiprocessing import Queue
-from process import QtReceiver,MyReceiver
-from PyQt5.QtCore import QThread, pyqtSignal,QObject
-import GENERAL
+
 
 class manageProcess:
     def __init__(self):

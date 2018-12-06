@@ -2,31 +2,27 @@ import os
 import sys
 import json
 import time
-import subprocess
-import signal
-import threading
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, CollapsibleTabWidget, ResultWidget, \
-    HistoryWidget, ImageDataWidget, QTreeWidgetItem
-from customLayout import FlowLayout
-from tabWidget import DataTabWidget, IpythonTabWidget, process_thread_pipe, IpythonWebView, log, ModelTabWidget, \
+from PyQt5.QtGui import QFont, QIcon
+from costomTools.customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, ResultWidget, \
+    ImageDataWidget
+from costomTools.customLayout import FlowLayout
+from costomTools.tabWidget import DataTabWidget, IpythonTabWidget, ModelTabWidget, \
     ImageDataTabWidget, queueTabWidget, scriptTabWidget
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from PyQt5.QtQuick import QQuickView
-from PyQt5.QtCore import QUrl, QEvent
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtCore import QEvent
 
-from CreateModel import createModelDialog
-from modelManager import modelManagerDialog
-from SwitchButton import switchButton
-from model import ml_model
-from project import ml_project
-from multiprocessing import Queue
-from management import manageProcess
+from core.CreateModel import createModelDialog
+from management.processManager import processManagerDialog
+from management.modelManager import modelManagerDialog
+from costomTools.SwitchButton import switchButton
+from core.model import ml_model
+from core.project import ml_project
+from management.management_ import manageProcess
 import GENERAL
 
 GENERAL.init()
@@ -38,7 +34,7 @@ class MainFrame(QMainWindow):
 
     def __init__(self, parent=None):
         super(MainFrame, self).__init__(parent)
-        self.ui = loadUi('MainFrame.ui', self)
+        self.ui = loadUi('UI/MainFrame.ui', self)
         self.setWindowIcon(QIcon('./MLTool.ico'))
         self.trayIcon = QSystemTrayIcon(QIcon('./MLTool.ico'))
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -137,10 +133,13 @@ class MainFrame(QMainWindow):
         # model menu
         createModelMenu = self.ui.actionCreate_Model
         saveModelMenu = self.ui.actionSave_Model
-        saveModelMenu.setEnabled(False)
+        processManager = self.ui.actionProcess_Manager
         modelManager = self.ui.actionManagement
+        saveModelMenu.setEnabled(False)
+
         createModelMenu.triggered.connect(self.createModel)
         modelManager.triggered.connect(self.openModelManager)
+        processManager.triggered.connect(self.openProcessManager)
 
     def createProject(self):
         c = CreateProjectDialog()
@@ -576,12 +575,19 @@ class MainFrame(QMainWindow):
             self.addQueueTab()
 
     def openModelManager(self):
-        dialog = modelManagerDialog(self.MLProject)
-        r = dialog.exec_()
+        dialog = modelManagerDialog(self.MLProject, self)
+        dialog.exec_()
+        '''
         if r == QDialog.Accepted:
             newModel = ml_model(dialog.modelType, dialog.modelName, dialog.modelLocation)
             self.MLModels.append(newModel)
             newModel.update()
+        '''
+
+    def openProcessManager(self):
+        dialog = processManagerDialog(self.MLProject, self)
+        dialog.exec_()
+
 
 # class createModelDialog(QDialog):
 #     def __init__(self, MLProject: ml_project):
@@ -678,7 +684,7 @@ class CreateProjectDialog(QDialog):
         self.projectName = self.defaultName
         self.fullProjectDir = os.path.abspath(os.path.join(self.defaultLocation, self.defaultName))
 
-        self.ui = loadUi('CreateProject.ui', self)
+        self.ui = loadUi('UI/CreateProject.ui', self)
         self.mainLayout = QGridLayout(self)
         self.setLayout(self.mainLayout)
         self.setFixedSize(650, 400)

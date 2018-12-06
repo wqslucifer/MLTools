@@ -1,28 +1,19 @@
 import os
 import sys
-import gc
-import time
-import pandas as pd
-from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QApplication, QTabWidget, \
-    QTabBar, QToolBar, QPushButton, QVBoxLayout, QTreeWidget, QSizePolicy, QAction, QStackedWidget, QListWidget, \
-    QScrollBar, QScrollArea, QTextEdit, QTreeView, QTreeWidgetItem, QSplitter, QStylePainter, QStyle, \
-    QStyleOptionButton, QTableView, QListWidgetItem, QProgressBar
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, QTimer, QThread, QSortFilterProxyModel, \
-    QModelIndex, QAbstractItemModel, QObject, QMimeData, QAbstractTableModel, QVariant
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItem, QIcon, \
+from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QHBoxLayout, QApplication, QToolBar, QPushButton, \
+    QVBoxLayout, \
+    QSizePolicy, QStackedWidget, QScrollBar, QScrollArea, QTreeView, QSplitter, QStylePainter, QStyle, \
+    QStyleOptionButton, QTableView
+from PyQt5.QtCore import Qt, QPoint, QRectF, pyqtSignal, QSortFilterProxyModel, \
+    QModelIndex, QMimeData, QAbstractTableModel, QVariant
+from PyQt5.QtGui import QPainter, QPen, QColor, QFont, QPainterPath, QIcon, \
     QMouseEvent, QStandardItemModel, QPaintEvent, QImage, QPixmap, QDrag, QDragEnterEvent, QDragMoveEvent, QTextOption, \
     QDropEvent
 
-from PyQt5.QtQuick import QQuickView, QQuickItem
-from PyQt5.QtQuickWidgets import QQuickWidget
-from PyQt5.QtCore import QUrl, pyqtSlot
-from PyQt5.QtGui import QGuiApplication
-from PyQt5 import QtGui
-from customLayout import FlowLayout
-from process import processQueue, QtReceiver
+from costomTools.customLayout import FlowLayout
+from core.process import processQueue
 
-from model import ml_model, modelResult
-import GENERAL
+from core.model import ml_model, modelResult
 
 
 # widgets for main window tabs

@@ -1,6 +1,6 @@
 import sys
 
-from MLTools import MainFrame
+from core.MLTools import MainFrame
 from PyQt5.QtWidgets import QApplication
 
 if __name__ == '__main__':

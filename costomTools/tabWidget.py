@@ -1,42 +1,36 @@
 import os
-import sys
-import importlib
-from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QFrame, QHBoxLayout, QListWidget, QToolBox, \
+from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QHBoxLayout, QListWidget, QToolBox, \
     QTabWidget, QTextEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QSpinBox, \
-    QDoubleSpinBox, QFrame, QSizePolicy, QHeaderView, QTableView, QApplication, QScrollArea, QScrollBar, QSplitter, \
-    QSplitterHandle, QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QWidgetAction, QStackedWidget, \
+    QDoubleSpinBox, QFrame, QSizePolicy, QTableView, QApplication, QScrollArea, QSplitter, \
+    QComboBox, QGroupBox, QFormLayout, QCheckBox, QMenu, QAction, QStackedWidget, \
     QHeaderView, QMessageBox, QProgressBar, QListWidgetItem, QToolBar, QFileDialog
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize, QRectF, QPointF, pyqtSignal, pyqtSlot, QSettings, QTimer, QUrl, QDir, \
-    QAbstractTableModel, QEvent, QObject, QModelIndex, QVariant, QThread, QObject, QMimeData, QRegExp, QTextStream, \
-    QFile, QIODevice
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPalette, QPainterPath, QStandardItemModel, QTextCursor, \
-    QCursor, QDrag, QStandardItem, QIcon, QSyntaxHighlighter, QKeySequence, QTextCharFormat
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
-from customLayout import FlowLayout
-from processSettingDialogs import fillNADialog, logTransformDialog
+from PyQt5.QtCore import Qt, QPoint, pyqtSignal, pyqtSlot, QTimer, QUrl, QDir, \
+    QAbstractTableModel, QEvent, QModelIndex, QVariant, QThread, QRegExp, QTextStream, \
+    QFile
+from PyQt5.QtGui import QColor, QFont, QTextCursor, \
+    QCursor, QIcon, QSyntaxHighlighter, QTextCharFormat
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from costomTools.customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
+from costomTools.customLayout import FlowLayout
+from core.processSettingDialogs import fillNADialog, logTransformDialog
 
-from SwitchButton import switchButton
+from costomTools.SwitchButton import switchButton
 import pandas as pd
 import numpy as np
 import subprocess
 import logging
 import threading
 import gc
-import time
-import datetime
 from multiprocessing import Queue
 
-from model import xgbModel
+from core.model import xgbModel
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
 import seaborn as sns
-from process import processQueue, QtReceiver
+from core.process import processQueue, QtReceiver
 import GENERAL
-from management import manageProcess
 
 logfileformat = '[%(levelname)s] (%(threadName)-10s) %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=logfileformat)
@@ -1417,8 +1411,8 @@ class IpythonWebView(QWebEngineView):
 
 # widget for tab
 class ModelTabWidget(QWidget):
-    from model import ml_model
-    from project import ml_project
+    from core.model import ml_model
+    from core.project import ml_project
     update = pyqtSignal()
 
     def __init__(self, MLModel: ml_model, MLProject: ml_project, parent=None):

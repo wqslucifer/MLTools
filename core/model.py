@@ -8,20 +8,14 @@ import gc
 import sys
 import json
 import GENERAL
-import time
 import datetime
 import pickle
 import pandas as pd
-from PyQt5.QtWidgets import QWidget, QDialog, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, \
-    QApplication, QDockWidget, QLabel, QAction, QToolButton, QScrollArea, QScrollBar, QTabWidget, QFrame
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.uic import loadUi
+from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtCore
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QIcon
-from project import ml_project
-from SwitchButton import switchButton
+from core.project import ml_project
 
-from multiprocessing import Process, current_process, Queue, JoinableQueue
+from multiprocessing import Process
 import xgboost as xgb
 from sklearn.model_selection import KFold
 from sklearn.metrics import *
