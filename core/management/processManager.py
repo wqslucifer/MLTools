@@ -1,4 +1,6 @@
 import os
+import hashlib
+import pickle
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon
@@ -13,6 +15,8 @@ GENERAL.init()
 class processManagerDialog(QDialog):
     def __init__(self, MLProject: ml_project, parent=None):
         super(processManagerDialog, self).__init__(parent=parent)
+        self.hash_md5 = hashlib.md5()
+        self.installDir = GENERAL.get_value('INSTALL_DIR')
         self.mainLayout = QVBoxLayout(self)
         self.upperLayout = QVBoxLayout(self)
         self.lowerLayout = QVBoxLayout(self)
@@ -24,6 +28,7 @@ class processManagerDialog(QDialog):
         self.addProcessAction = None
         # data
         self.processList = []
+        self.processDict = {}
         # self.curDir = GENERAL.get_value('INSTALL_DIR')
         self.initUI()
 
@@ -56,26 +61,120 @@ class processManagerDialog(QDialog):
         self.processTable.setModel(self.tableModel)
         self.processTable.autoScrollMargin()
         self.tableModel.notEmpty.connect(lambda: self.setTableHeaderStyle())
+        self.loadProcessList()
 
     def loadProcessList(self):
-        # self.tableModel.loadFuncList(self.functionList)
-        pass
+        localProcessFile = os.path.join(self.installDir, 'local', 'localProcess.ml')
+        if os.path.exists(localProcessFile):
+            with open(localProcessFile, 'rb') as f:
+                self.processDict, self.processList = pickle.load(f)
+                self.tableModel.loadProcessList(self.processList)
+        else:
+            print('local process file not exist')
 
     def saveProcessList(self):
-        pass
+        localProcessFile = os.path.join(self.installDir, 'local', 'localProcess.ml')
+        with open(localProcessFile, 'wb') as f:
+            pickle.dump((self.processDict, self.processList), f)
 
     def addProcess(self):
         dialog = addProcessDialog(self)
         r = dialog.exec_()
+        index = len(self.processList)
         if r == QDialog.Accepted:
-            print(dialog.functionList)
-        pass
+            for i, f in enumerate(dialog.functionList):
+                f['describe'] = ''
+                self.hash_md5.update((f['name'] + f['path']).encode('UTF-8'))
+                f['ID'] = self.hash_md5.hexdigest()
+                if f['ID'] not in self.processDict:
+                    self.processDict[f['ID']] = index + i
+                    self.processList.insert(index + i, f)
+            self.tableModel.addProcessList(self.processList)
+        self.saveProcessList()
 
     def delProcess(self):
         pass
 
     def setTableHeaderStyle(self):
         self.processTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.processTable.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+
+
+class functionModel(QAbstractTableModel):
+    notEmpty = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super(functionModel, self).__init__(parent=parent)
+        self.rows = 0
+        self.cols = 7  # name, param_count, param,dependent, filename, path
+        self.processList = None
+
+    def addProcessList(self, processList):
+        self.processList = processList
+        self.update()
+
+    def loadProcessList(self, processList):
+        self.processList = processList
+        self.rows = len(self.processList)
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
+        if self.rows > 0:
+            self.notEmpty.emit()
+
+    def rowCount(self, parent=None, *args, **kwargs):
+        return self.rows
+
+    def columnCount(self, parent=None, *args, **kwargs):
+        return self.cols
+
+    def setRowCount(self, rows):
+        self.rows = rows
+
+    def setColumnCount(self, cols):
+        self.cols = cols
+
+    def data(self, modelIndex: QModelIndex, role=None):
+        if role == Qt.DisplayRole:
+            if modelIndex.column() == 0:  # name
+                return str(self.processList[modelIndex.row()]['name'])
+            elif modelIndex.column() == 1:  # param_count
+                return str(self.processList[modelIndex.row()]['param_count'])
+            elif modelIndex.column() == 2:  # params
+                return str(self.processList[modelIndex.row()]['param'])
+            elif modelIndex.column() == 3:  # describe
+                return str(self.processList[modelIndex.row()]['describe'])
+            elif modelIndex.column() == 4:  # dependent
+                return str(self.processList[modelIndex.row()]['dependent'])
+            elif modelIndex.column() == 5:  # filename
+                return str(self.processList[modelIndex.row()]['filename'])
+            elif modelIndex.column() == 6:  # path
+                return str(self.processList[modelIndex.row()]['path'])
+        else:
+            return QVariant()
+
+    def headerData(self, section, orientation, role=None):
+        if role != Qt.DisplayRole:
+            return QVariant()
+        if orientation == Qt.Horizontal:
+            return ['Function Name', 'param:count', 'param:default', 'Describe', 'Dependent', 'Package Name', 'Path'][
+                section]
+        if orientation == Qt.Vertical:
+            return [i + 1 for i in range(self.rows)][section]
+        return QVariant()
+
+    def flags(self, modelIndex):
+        # flags = QAbstractTableModel.flags(self, modelIndex)
+        flags = Qt.NoItemFlags
+        flags |= Qt.ItemIsSelectable
+        flags |= Qt.ItemIsEnabled
+        return flags
+
+    def update(self):
+        self.beginResetModel()
+        self.rows = len(self.processList)
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
+        self.endResetModel()
+        if self.rows > 0:
+            self.notEmpty.emit()
 
 
 class addProcessDialog(QDialog):
@@ -179,68 +278,3 @@ class addProcessDialog(QDialog):
 
     def onFinishClicked(self):
         self.done(QDialog.Accepted)
-
-
-class functionModel(QAbstractTableModel):
-    notEmpty = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super(functionModel, self).__init__(parent=parent)
-        self.rows = 0
-        self.cols = 0
-        self.functionList = None
-
-    def loadFuncList(self, functionList):
-        self.functionList = functionList
-        self.rows = len(self.functionList)
-        self.cols = 3  # name, param, param_count, filename, dependent
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
-        if self.rows > 0:
-            self.notEmpty.emit()
-
-    def rowCount(self, parent=None, *args, **kwargs):
-        return self.rows
-
-    def columnCount(self, parent=None, *args, **kwargs):
-        return self.cols
-
-    def setRowCount(self, rows):
-        self.rows = rows
-
-    def setColumnCount(self, cols):
-        self.cols = cols
-
-    def data(self, modelIndex: QModelIndex, role=None):
-        if role == Qt.DisplayRole:
-            if modelIndex.column() == 0:  # name
-                return str(self.functionList[modelIndex.row()]['name'])
-            elif modelIndex.column() == 1:  # params
-                return str(self.functionList[modelIndex.row()]['param'])
-            elif modelIndex.column() == 2:  # file
-                return str(self.functionList[modelIndex.row()]['filename'])
-        else:
-            return QVariant()
-
-    def headerData(self, section, orientation, role=None):
-        if role != Qt.DisplayRole:
-            return QVariant()
-        if orientation == Qt.Horizontal:
-            return ['Function Name', 'param:default', 'Package Name'][section]
-        if orientation == Qt.Vertical:
-            return [i + 1 for i in range(self.rows)][section]
-        return QVariant()
-
-    def flags(self, modelIndex):
-        # flags = QAbstractTableModel.flags(self, modelIndex)
-        flags = Qt.NoItemFlags
-        flags |= Qt.ItemIsSelectable
-        flags |= Qt.ItemIsEnabled
-        return flags
-
-    def update(self):
-        self.beginInsertRows(QModelIndex(), self.rows + 1, self.rows + len(self.functionList))
-        self.rows += len(self.functionList)
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
-        self.endInsertRows()
-        if self.rows > 0:
-            self.notEmpty.emit()
