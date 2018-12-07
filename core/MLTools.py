@@ -17,12 +17,12 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QEvent
 
 from core.CreateModel import createModelDialog
-from management.processManager import processManagerDialog
-from management.modelManager import modelManagerDialog
+from core.management.processManager import processManagerDialog
+from core.management.modelManager import modelManagerDialog
 from costomTools.SwitchButton import switchButton
 from core.model import ml_model
 from core.project import ml_project
-from management.management_ import manageProcess
+from core.management.management_ import manageProcess
 import GENERAL
 
 GENERAL.init()
@@ -47,6 +47,9 @@ class MainFrame(QMainWindow):
         # init tool bar
         self.openAction = None
         self.modelAction = None
+        self.queueAction = None
+        self.processManagerAction = None
+        self.runQueueAction = None
         # local data
         self.MLProject = None
         self.fullProjectDir = None
@@ -77,6 +80,9 @@ class MainFrame(QMainWindow):
         # local variable
         self.queueTab = queueTabWidget(self)
         self.queueTab.hide()
+        # MLTools location
+        self.curDir = os.getcwd()
+        GENERAL.set_value('INSTALL_DIR', self.curDir)
 
     def initUI(self):
         # set main layout and splitter
@@ -115,6 +121,11 @@ class MainFrame(QMainWindow):
         self.queueAction.setStatusTip('Queue Management')
         self.queueAction.triggered.connect(self.addQueueTab)
         self.toolBar.addAction(self.queueAction)
+        # process manager
+        self.processManagerAction = QAction(QIcon('./res/ProcessManager.ico'), 'process Manager', self)
+        self.processManagerAction.setStatusTip('Process Manager')
+        self.processManagerAction.triggered.connect(self.openProcessManager)
+        self.toolBar.addAction(self.processManagerAction)
         # run queue
         self.runQueueAction = QAction(QIcon('./res/RunQueue.ico'), 'Run Queue', self)
         self.runQueueAction.setStatusTip('Run Queue')

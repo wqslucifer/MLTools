@@ -13,7 +13,7 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from costomTools.customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from costomTools.customLayout import FlowLayout
 from core.processSettingDialogs import fillNADialog, logTransformDialog
-
+from core.management.processManager import processManagerDialog
 from costomTools.SwitchButton import switchButton
 import pandas as pd
 import numpy as np
@@ -878,8 +878,8 @@ class DataTabWidget(QWidget):
             self.mainTab.setCurrentIndex(2)
 
     def popFuncManager(self):
-        dialog = functionManagerDialog(self)
-        dialog.show()
+        dialog = processManagerDialog(self)
+        dialog.exec_()
 
     def collapseOutputTab(self):
         self.outputTab.collapseStacks()
@@ -1254,71 +1254,6 @@ class customTableModel(QAbstractTableModel):
         flags |= Qt.ItemIsSelectable
         flags |= Qt.ItemIsEnabled
         return flags
-
-
-class functionModel(QAbstractTableModel):
-    notEmpty = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super(functionModel, self).__init__(parent=parent)
-        self.rows = 0
-        self.cols = 0
-        self.functionList = None
-
-    def loadFuncList(self, functionList):
-        self.functionList = functionList
-        self.rows = len(self.functionList)
-        self.cols = 3  # name, param, param_count, filename, dependent
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
-        if self.rows > 0:
-            self.notEmpty.emit()
-
-    def rowCount(self, parent=None, *args, **kwargs):
-        return self.rows
-
-    def columnCount(self, parent=None, *args, **kwargs):
-        return self.cols
-
-    def setRowCount(self, rows):
-        self.rows = rows
-
-    def setColumnCount(self, cols):
-        self.cols = cols
-
-    def data(self, modelIndex: QModelIndex, role=None):
-        if role == Qt.DisplayRole:
-            if modelIndex.column() == 0:  # name
-                return str(self.functionList[modelIndex.row()]['name'])
-            elif modelIndex.column() == 1:  # params
-                return str(self.functionList[modelIndex.row()]['param'])
-            elif modelIndex.column() == 2:  # file
-                return str(self.functionList[modelIndex.row()]['filename'])
-        else:
-            return QVariant()
-
-    def headerData(self, section, orientation, role=None):
-        if role != Qt.DisplayRole:
-            return QVariant()
-        if orientation == Qt.Horizontal:
-            return ['Function Name', 'param:default', 'Package Name'][section]
-        if orientation == Qt.Vertical:
-            return [i + 1 for i in range(self.rows)][section]
-        return QVariant()
-
-    def flags(self, modelIndex):
-        # flags = QAbstractTableModel.flags(self, modelIndex)
-        flags = Qt.NoItemFlags
-        flags |= Qt.ItemIsSelectable
-        flags |= Qt.ItemIsEnabled
-        return flags
-
-    def update(self):
-        self.beginInsertRows(QModelIndex(), self.rows + 1, self.rows + len(self.functionList))
-        self.rows += len(self.functionList)
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rows, self.cols))
-        self.endInsertRows()
-        if self.rows > 0:
-            self.notEmpty.emit()
 
 
 class IpythonTabWidget(QWidget):
@@ -1950,107 +1885,6 @@ class customAction(QAction):
 
     def clicked(self):
         self.myClicked.emit(self.point)
-
-
-class functionManagerDialog(QDialog):
-    def __init__(self, parent):
-        super(functionManagerDialog, self).__init__(parent=parent)
-        self.MLProject = GENERAL.get_value('PROJECT')
-        self.functionList = self.MLProject.functionList
-        self.mainLayout = QVBoxLayout(self)
-        self.toolBar = QToolBar(self)
-        self.mainList = QTableView(self)
-        self.tableModel = functionModel(self)
-        # local data
-        self.importList = None
-        self.funcInfoList = None
-        # tools
-        self.importButton = QAction(QIcon('./res/Open.ico'), 'Import', self)
-        self.initUI()
-
-    def initUI(self):
-        self.setMinimumSize(600, 400)
-        # init tool bar
-        self.importButton.triggered.connect(lambda: self.addFuncDialog())
-        self.toolBar.addActions([self.importButton])
-
-        self.mainLayout.addWidget(self.toolBar)
-        self.mainLayout.addWidget(self.mainList)
-
-        self.mainList.setEditTriggers(QTableView.NoEditTriggers)
-        self.mainList.setSelectionBehavior(QTableView.SelectRows)
-        self.mainList.setSelectionMode(QTableView.SingleSelection)
-        self.mainList.setFocusPolicy(Qt.NoFocus)
-        self.mainList.setModel(self.tableModel)
-        self.mainList.autoScrollMargin()
-        self.tableModel.notEmpty.connect(lambda: self.setTableHeaderStyle())
-        self.tableModel.loadFuncList(self.functionList)
-
-    def addFuncDialog(self):
-        dialog = QFileDialog()
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        fileTypes = "Python File (*.py)"
-        if os.path.exists(os.path.join(self.MLProject.projectDir, self.MLProject.scriptDir)):
-            dialog.setDirectory(os.path.join(self.MLProject.projectDir, self.MLProject.scriptDir))
-        else:
-            dialog.setDirectory(self.MLProject.projectDir)
-        importedFile, _ = dialog.getOpenFileNames(self, "Import Function File", "", fileTypes,
-                                                  options=options)  # return list
-        packageInfo = self.importFromPy(importedFile[0])
-        self.addPackage(packageInfo)
-
-    def importFromPy(self, importedFile):
-        # parse python file by string
-        # get function name and params
-        fileName = os.path.basename(importedFile)
-        with open(importedFile, 'r') as f:
-            packageInfo = dict()
-            packageList = list()
-            funcList = list()
-            lines = f.readlines()
-            # get import list
-            for l in lines:
-                if l.startswith('import '):
-                    packageList.append(l.split()[1])
-                elif l.startswith('def '):
-                    funcInfo = dict()
-                    funcName = l[4:l.find('(')]
-                    argumentList = l[l.find('(') + 1:l.find(')')]
-                    argumentList = [i.strip() for i in argumentList.split(',')]
-                    param = dict()
-                    for a in argumentList:
-                        if '=' in a:
-                            paramLine = [i.strip() for i in a.split('=')]
-                            paramName = paramLine[0]
-                            default = paramLine[1]
-                        else:
-                            paramName = a
-                            default = None
-                        param[paramName] = default
-                    funcInfo['name'] = funcName
-                    funcInfo['param'] = param
-                    funcInfo['param_count'] = len(param)
-                    funcInfo['filename'] = fileName
-                    funcInfo['dependent'] = packageList
-                    funcList.append(funcInfo)
-
-            packageInfo['packageName'] = fileName
-            packageInfo['funcList'] = funcList
-            packageInfo['packageList'] = packageList
-        return packageInfo
-
-    def addPackage(self, packageInfo):
-        funcList = packageInfo['funcList']
-        for f in funcList:
-            self.functionList.append(f)
-            self.tableModel.update()
-        self.MLProject.functionList = self.functionList
-        GENERAL.set_value('PROJECT', self.MLProject)
-
-    def setTableHeaderStyle(self):
-        self.mainList.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.mainList.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
 
 if __name__ == '__main__':
