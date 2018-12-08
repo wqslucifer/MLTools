@@ -599,7 +599,6 @@ class MainFrame(QMainWindow):
         dialog = processManagerDialog(self.MLProject, self)
         dialog.exec_()
 
-
 # class createModelDialog(QDialog):
 #     def __init__(self, MLProject: ml_project):
 #         super(createModelDialog, self).__init__()

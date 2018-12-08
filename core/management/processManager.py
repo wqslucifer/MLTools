@@ -3,8 +3,8 @@ import hashlib
 import pickle
 
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtCore import Qt, QAbstractTableModel, pyqtSignal, QModelIndex, QVariant
+from PyQt5.QtGui import QFont, QIcon, QCursor, QCloseEvent
+from PyQt5.QtCore import Qt, QAbstractTableModel, pyqtSignal, QModelIndex, QVariant, QPoint
 
 from core.project import ml_project
 import GENERAL
@@ -24,6 +24,7 @@ class processManagerDialog(QDialog):
         self.toolBar = QToolBar(self)
         self.processTable = QTableView(self)
         self.tableModel = functionModel(self)
+        self.processTablePopMenu = QMenu(self)
         # tool bar
         self.addProcessAction = None
         # data
@@ -31,6 +32,7 @@ class processManagerDialog(QDialog):
         self.processDict = {}
         # self.curDir = GENERAL.get_value('INSTALL_DIR')
         self.initUI()
+        self.initRightClickMenu()
 
     def initUI(self):
         self.setLayout(self.mainLayout)
@@ -60,6 +62,7 @@ class processManagerDialog(QDialog):
         # table
         self.processTable.setModel(self.tableModel)
         self.processTable.autoScrollMargin()
+        self.processTable.setSelectionBehavior(QTableView.SelectRows)
         self.tableModel.notEmpty.connect(lambda: self.setTableHeaderStyle())
         self.loadProcessList()
 
@@ -92,12 +95,55 @@ class processManagerDialog(QDialog):
             self.tableModel.addProcessList(self.processList)
         self.saveProcessList()
 
-    def delProcess(self):
+    def delProcess(self, point: QPoint):
+        index = self.processTable.indexAt(point)
+        print(index.row(), index.column())
         pass
 
     def setTableHeaderStyle(self):
         self.processTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.processTable.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+
+    def initRightClickMenu(self):
+        self.processTable.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.processTable.customContextMenuRequested.connect(self.onProcessTableRightClicked)
+
+    def onProcessTableRightClicked(self, point: QPoint):
+        self.processTablePopMenu.clear()
+        # numeric
+        m1 = QAction('delete process', self)
+        m1.triggered.connect(lambda: self.delProcess(point))
+        m2 = QAction('edit describe', self)
+        m2.triggered.connect(lambda: self.editDescribe(point))
+        m3 = QAction('edit source file', self)
+        m3.triggered.connect(lambda: self.editSource(point))
+
+        processTableActionList = [m1, m2, m3]
+        self.processTablePopMenu.addActions(processTableActionList)
+        # test action
+        t1 = QAction('test', self)
+        # t1.triggered.connect()
+        self.processTablePopMenu.addAction(t1)
+        # pop menu
+        self.processTablePopMenu.exec(QCursor.pos())
+
+    def editDescribe(self, point: QPoint):
+        index = self.processTable.indexAt(point)
+        print(index.row(), index.column())
+        dialog = describeEditDialog(self.processList[index.row()]['describe'], self)
+        r = dialog.exec_()
+        if r == QDialog.Accepted:
+            self.processList[index.row()]['describe'] = dialog.describe
+            self.tableModel.update()
+
+    def editSource(self, point: QPoint):
+        index = self.processTable.indexAt(point)
+        print(index.row(), index.column())
+        pass
+
+    def closeEvent(self, event: QCloseEvent):
+        self.saveProcessList()
+        event.accept()
 
 
 class functionModel(QAbstractTableModel):
@@ -277,4 +323,28 @@ class addProcessDialog(QDialog):
         return packageInfo
 
     def onFinishClicked(self):
+        self.done(QDialog.Accepted)
+
+
+class describeEditDialog(QDialog):
+    def __init__(self, describe, parent=None):
+        super(describeEditDialog, self).__init__(parent=parent)
+        self.describe = describe
+        self.mainLayout = QVBoxLayout(self)
+        self.editor = QTextEdit(self)
+        self.OKButton = QPushButton('OK', self)
+        self.initUI()
+
+    def initUI(self):
+        self.setMinimumSize(200, 100)
+        self.mainLayout.addWidget(self.editor)
+        self.mainLayout.addWidget(self.OKButton, alignment=Qt.AlignRight)
+        self.editor.setPlainText(self.describe)
+        self.editor.textChanged.connect(lambda: self.saveText(self.editor.toPlainText()))
+        self.OKButton.clicked.connect(self.onOkClicked)
+
+    def saveText(self, text):
+        self.describe = text
+
+    def onOkClicked(self):
         self.done(QDialog.Accepted)
