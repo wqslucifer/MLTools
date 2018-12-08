@@ -29,7 +29,7 @@ class processManagerDialog(QDialog):
         self.addProcessAction = None
         # data
         self.processList = []
-        self.processDict = {}
+        self.processDict = set()
         # self.curDir = GENERAL.get_value('INSTALL_DIR')
         self.initUI()
         self.initRightClickMenu()
@@ -90,15 +90,18 @@ class processManagerDialog(QDialog):
                 self.hash_md5.update((f['name'] + f['path']).encode('UTF-8'))
                 f['ID'] = self.hash_md5.hexdigest()
                 if f['ID'] not in self.processDict:
-                    self.processDict[f['ID']] = index + i
                     self.processList.insert(index + i, f)
+                    self.processDict.add(f['ID'])
             self.tableModel.addProcessList(self.processList)
         self.saveProcessList()
 
     def delProcess(self, point: QPoint):
         index = self.processTable.indexAt(point)
-        print(index.row(), index.column())
-        pass
+        self.tableModel.beginRemoveRows(QModelIndex(), index.row(), index.row())
+        p = self.processList.pop(index.row())
+        self.tableModel.endRemoveRows()
+        self.processDict.remove(p['ID'])
+        self.saveProcessList()
 
     def setTableHeaderStyle(self):
         self.processTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
