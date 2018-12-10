@@ -106,10 +106,12 @@ class fillNADialog(QDialog):
         # checkNumericFeatures
         self.checkNumericFeatures.setText('Fill All Numeric Features')
         self.checkNumericFeatures.setFixedHeight(20)
+        self.checkNumericFeatures.toggled.connect(self.setFeatures)
         self.checkNumericFeatures.setFont(QFont('Arial', 10, QFont.Times))
         # checkCategoricalFeatures
         self.checkCategoricalFeatures.setText('Fill All Categorical Features')
         self.checkCategoricalFeatures.setFixedHeight(20)
+        self.checkCategoricalFeatures.toggled.connect(self.setFeatures)
         self.checkCategoricalFeatures.setFont(QFont('Arial', 10, QFont.Times))
         # checkCustomFeatures
         self.checkCustomFeatures.setText('Fill Custom Features')
