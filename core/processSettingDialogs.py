@@ -21,7 +21,7 @@ def process_thread_pipe(process):
 
 
 class fillNADialog(QDialog):
-    def __init__(self, PQ: processQueue, parent=None):
+    def __init__(self, PQ: processQueue, columns=None, parent=None):
         super(fillNADialog, self).__init__(parent=parent)
         # local data
         self.processQ = PQ
@@ -32,6 +32,7 @@ class fillNADialog(QDialog):
         self.applyRows = None
         self.param = dict()
         self.method = None
+        self.columns = columns
         # widgets
         self.mainLayout = QVBoxLayout(self)
         self.downLayout = QHBoxLayout(self)
@@ -200,6 +201,12 @@ class fillNADialog(QDialog):
         self.rightLayout.addWidget(self.methodGroup)
         self.rightLayout.addStretch(1)
         self.rightLayout.addLayout(buttonLayout)
+
+        # init columns
+        if self.columns:
+            self.checkCustomFeatures.setChecked(True)
+            for i in self.columns:
+                self.featureList.append(self.processQ.features[i])
 
     def addToQueue(self):
         self.prepareData()

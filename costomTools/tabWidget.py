@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QLabel, QGridLayout, QWidget, QDialog, QHBoxLayout, 
     QHeaderView, QMessageBox, QProgressBar, QListWidgetItem, QToolBar, QFileDialog
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal, pyqtSlot, QTimer, QUrl, QDir, \
     QAbstractTableModel, QEvent, QModelIndex, QVariant, QThread, QRegExp, QTextStream, \
-    QFile
+    QFile, QItemSelectionModel
 from PyQt5.QtGui import QColor, QFont, QTextCursor, \
     QCursor, QIcon, QSyntaxHighlighter, QTextCharFormat
 from PyQt5.QtWebEngineWidgets import QWebEngineView
@@ -747,10 +747,8 @@ class DataTabWidget(QWidget):
         generalMenu = QMenu('General', self)
         g1 = QAction('NA plot', self)
         g1.triggered.connect(lambda: self.nanPlot(point))
-
         dataExplorerActionList = [g1]
         generalMenu.addActions(dataExplorerActionList)
-        self.dataExplorerPopMenu.addMenu(generalMenu)
 
         # numeric
         numericMenu = QMenu('Numeric', self)
@@ -767,7 +765,6 @@ class DataTabWidget(QWidget):
 
         dataExplorerActionList = [a1, a2, a3, a4, a5]
         numericMenu.addActions(dataExplorerActionList)
-        self.dataExplorerPopMenu.addMenu(numericMenu)
 
         # category
         categoryMenu = QMenu('Category', self)
@@ -776,7 +773,13 @@ class DataTabWidget(QWidget):
 
         dataExplorerActionList = [b1]
         categoryMenu.addActions(dataExplorerActionList)
-        self.dataExplorerPopMenu.addMenu(categoryMenu)
+
+        # plot menu
+        plotMenu = QMenu('Plot', self)
+        plotMenu.addMenu(generalMenu)
+        plotMenu.addMenu(numericMenu)
+        plotMenu.addMenu(categoryMenu)
+        self.dataExplorerPopMenu.addMenu(plotMenu)
 
         # process for column
         processMenu = QMenu('Process', self)
@@ -839,7 +842,7 @@ class DataTabWidget(QWidget):
     # process setting
     def popSetting(self, processName: str):
         if processName == 'fillNA':
-            dialog = fillNADialog(self.pq, parent=self)
+            dialog = fillNADialog(self.pq, None, parent=self)
             dialog.show()
             dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
         if processName == 'logTrans':
@@ -883,6 +886,12 @@ class DataTabWidget(QWidget):
 
     def collapseOutputTab(self):
         self.outputTab.collapseStacks()
+
+    def fillNA(self, point: QPoint):
+        modelIndexList = self.dataExplorer.selectionModel().selectedColumns()
+        columns = [modelIndexList[i].column() for i in range(len(modelIndexList))]
+        dialog = fillNADialog(self.pq, columns, parent=self)
+        dialog.show()
 
 
 class queueTabWidget(QWidget):
