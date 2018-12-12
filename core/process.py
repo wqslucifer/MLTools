@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from threading import Thread
 from PyQt5.QtGui import QImage
+from sklearn import preprocessing
 from multiprocessing import Process, current_process, Queue, JoinableQueue, Pipe
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -152,6 +153,7 @@ class processQueue(Process):
         print('FIN:', self.pid)
 
     # data process func
+    # fill na
     def fillNA(self, applyFeatures, applyRows, method, value):
         try:
             targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
@@ -163,8 +165,31 @@ class processQueue(Process):
         else:
             return 0
 
+    # encode category
+    def encodeCategory(self, applyFeatures, applyRows, method='ENCODE'):
+        # need fill na first
+        targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
+        res = []
+        if method == 'ONEHOTCODE':
+            for d in targetList:
+                dummies = pd.get_dummies(d.loc[applyRows, applyFeatures], dummy_na=True)
+                d = pd.concat([d, dummies], axis=1)
+                d = d.drop(applyFeatures, axis=1)
+                res.append(d)
+            pass
+        elif method == 'ENCODE':
+            encoderList = [preprocessing.LabelEncoder() for _ in range(len(applyFeatures))]
+            for i, f in enumerate(applyFeatures):
+                encoderList[i].fit(self.trainSet.loc[applyRows, f])
+            for d in targetList:
+                for i, f in enumerate(applyFeatures):
+                    d.loc[applyRows, f] = encoderList[i].transform(d.loc[applyRows, f])
+                res.append(d)
+        return res
+
     def dataTransform(self, applyFeatures, applyRows, method):
         targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
+        res = []
         for d in targetList:
             if method == 'RECIPROCAL':
                 d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: 1 / (x + 1))
@@ -178,6 +203,8 @@ class processQueue(Process):
                 d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.sqrt(x))
             elif method == 'CUBE_ROOT':
                 d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.cbrt(x))
+            res.append(d)
+        return res
 
     def sleep(self, seconds):
         time.sleep(seconds)
