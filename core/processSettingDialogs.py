@@ -288,7 +288,7 @@ class fillNADialog(QDialog):
 
 
 class logTransformDialog(QDialog):
-    def __init__(self, PQ: processQueue, parent=None):
+    def __init__(self, PQ: processQueue, columns=None, parent=None):
         super(logTransformDialog, self).__init__(parent=parent)
         # local data
         self.processQ = PQ
@@ -298,6 +298,7 @@ class logTransformDialog(QDialog):
         self.applyRows = None
         self.param = dict()
         self.method = None
+        self.columns = columns
         # widgets
         self.mainLayout = QVBoxLayout(self)
         self.downLayout = QHBoxLayout(self)
@@ -438,6 +439,13 @@ class logTransformDialog(QDialog):
         self.rightLayout.addStretch(1)
         self.rightLayout.addLayout(buttonLayout)
 
+        # init columns
+        if self.columns:
+            self.checkCustomFeatures.setChecked(True)
+            for i in self.columns:
+                self.featureList.append(self.processQ.features[i])
+
+
     def addToQueue(self):
         if self.method:
             self.prepareData()
@@ -488,24 +496,208 @@ class logTransformDialog(QDialog):
 
     def addProcess(self):
         describe = {
-            'RECIPROCAL':'Transform column using Reciprocal t=1/x',
-            'LOG_10':'Transform column using LOG_10 t=log10(x)',
-            'LOG_2':'Transform column using LOG_2 t=log2(x)',
-            'LOG_E':'Transform column using LOG_E t=ln(x)',
-            'SQUARE_ROOT':'Transform column using SQUARE_ROOT t=x**1/2',
-            'CUBE_ROOT':'Transform column using CUBE_ROOT t=x**1/3',
+            'RECIPROCAL': 'Transform column using Reciprocal t=1/x',
+            'LOG_10': 'Transform column using LOG_10 t=log10(x)',
+            'LOG_2': 'Transform column using LOG_2 t=log2(x)',
+            'LOG_E': 'Transform column using LOG_E t=ln(x)',
+            'SQUARE_ROOT': 'Transform column using SQUARE_ROOT t=x**1/2',
+            'CUBE_ROOT': 'Transform column using CUBE_ROOT t=x**1/3',
         }
         transformName = {
-            'RECIPROCAL':'Transform: t=1/x',
-            'LOG_10':'Transform: t=log10(x)',
-            'LOG_2':'Transform: t=log2(x)',
-            'LOG_E':'Transform: t=ln(x)',
-            'SQUARE_ROOT':'Transform: t=x**1/2',
-            'CUBE_ROOT':'Transform: t=x**1/3',
+            'RECIPROCAL': 'Transform: t=1/x',
+            'LOG_10': 'Transform: t=log10(x)',
+            'LOG_2': 'Transform: t=log2(x)',
+            'LOG_E': 'Transform: t=ln(x)',
+            'SQUARE_ROOT': 'Transform: t=x**1/2',
+            'CUBE_ROOT': 'Transform: t=x**1/3',
         }
         # index = self.processQ.addProcess(self.processQ.fillNA, param=self.param)
         # self.processQ.addDescribe(index, 'fillNA', describe[self.method])
         return self.processQ.fillNA, self.param, transformName[self.method], describe[self.method]
+
+
+class encodeDialog(QDialog):
+    def __init__(self, PQ: processQueue, columns=None, parent=None):
+        super(encodeDialog, self).__init__(parent=parent)
+        # local data
+        self.processQ = PQ
+        self.value = None
+        self.applyAllFeatures = True
+        self.applyFeatures = None
+        self.applyAllRows = True
+        self.applyRows = None
+        self.param = dict()
+        self.method = None
+        self.columns = columns
+        # widgets
+        self.mainLayout = QVBoxLayout(self)
+        self.downLayout = QHBoxLayout(self)
+        self.leftLayout = QVBoxLayout(self)
+        self.rightLayout = QVBoxLayout(self)
+
+        self.titleLabel = QLabel('Encode Categorical Feature', self)
+        # features
+        self.featureGroup = QGroupBox('Features', self)
+        self.featureButtonGroup = QButtonGroup(self)
+        self.checkAllCategoricalFeatures = QRadioButton(self)
+        self.checkCustomFeatures = QRadioButton(self)
+        self.featureMethod = None
+        self.featureList = QTextEdit(self)
+        # rows
+        self.rowGroup = QGroupBox('Rows', self)
+        self.rowButtonGroup = QButtonGroup(self)
+        self.checkAllRows = QRadioButton(self)
+        self.checkCustomRows = QRadioButton(self)
+        self.rowList = QTextEdit(self)
+        # Encode method
+        self.methodGroup = QGroupBox('Encode Method', self)
+        self.methodButtonGroup = QButtonGroup(self)
+        self.method_ENCODE = QRadioButton(self)
+        self.method_ONEHOTCODE = QRadioButton(self)
+        # confirm
+        self.addToQueueButton = QPushButton('Add To Queue', self)
+        self.initUI()
+
+    def initUI(self):
+        self.setFixedSize(800, 600)
+
+        self.setLayout(self.mainLayout)
+        self.mainLayout.addWidget(self.titleLabel, 1, Qt.AlignTop)
+        self.mainLayout.addLayout(self.downLayout, 10)
+        self.downLayout.addLayout(self.leftLayout, 1)
+        self.downLayout.addLayout(self.rightLayout, 3)
+        # titleLabel
+        self.titleLabel.setFont(QFont('Arial', 15, QFont.Times))
+        self.titleLabel.setStyleSheet('QLabel {background-color : #A9A9A9; color: #FFFFFF}')
+        self.titleLabel.setFixedHeight(40)
+        self.titleLabel.setContentsMargins(30, 0, 0, 0)
+        # feature
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.checkAllCategoricalFeatures)
+        vbox.addWidget(self.checkCustomFeatures)
+        vbox.addWidget(self.featureList)
+        self.featureList.setEnabled(False)
+        self.featureGroup.setLayout(vbox)
+        self.featureButtonGroup.addButton(self.checkAllCategoricalFeatures)
+        self.featureButtonGroup.addButton(self.checkCustomFeatures)
+        # checkCategoricalFeatures
+        self.checkAllCategoricalFeatures.setText('Fill All Categorical Features')
+        self.checkAllCategoricalFeatures.setFixedHeight(20)
+        self.checkAllCategoricalFeatures.toggled.connect(self.setFeatures)
+        self.checkAllCategoricalFeatures.setFont(QFont('Arial', 10, QFont.Times))
+        self.checkAllCategoricalFeatures.setChecked(True)
+        # checkCustomFeatures
+        self.checkCustomFeatures.setText('Fill Custom Features')
+        self.checkCustomFeatures.setFixedHeight(20)
+        self.checkCustomFeatures.setFont(QFont('Arial', 10, QFont.Times))
+        self.checkCustomFeatures.toggled.connect(self.featureList.setEnabled)
+        # row
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.checkAllRows)
+        vbox.addWidget(self.checkCustomRows)
+        vbox.addWidget(self.rowList)
+        self.rowList.setEnabled(False)
+        self.rowGroup.setLayout(vbox)
+        self.rowButtonGroup.addButton(self.checkAllRows)
+        self.rowButtonGroup.addButton(self.checkCustomRows)
+        self.checkAllRows.setChecked(True)
+        for checkRow_ in [self.checkAllRows, self.checkCustomRows]:
+            checkRow_.setFixedHeight(20)
+            checkRow_.setFont(QFont('Arial', 10, QFont.Times))
+        # checkAllRows
+        self.checkAllRows.setText('Fill All Rows')
+        self.checkAllRows.toggled.connect(self.setApplyAllRows)
+        # checkCustomRows
+        self.checkCustomRows.setText('Fill custom Rows')
+        self.checkCustomRows.toggled.connect(self.rowList.setEnabled)
+        # row list
+        self.leftLayout.addWidget(self.featureGroup, alignment=Qt.AlignTop)
+        self.leftLayout.addWidget(self.rowGroup, alignment=Qt.AlignTop)
+        self.leftLayout.addStretch(1)
+        # method
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.method_ENCODE)
+        vbox.addWidget(self.method_ONEHOTCODE)
+        self.methodGroup.setLayout(vbox)
+        self.methodButtonGroup.addButton(self.method_ENCODE)
+        self.methodButtonGroup.addButton(self.method_ONEHOTCODE)
+
+        for method_ in [self.method_ENCODE, self.method_ONEHOTCODE]:
+            method_.setFixedHeight(20)
+            method_.setFont(QFont('Arial', 10, QFont.Times))
+        # method_ENCODE
+        self.method_ENCODE.setText('Encode Category')
+        self.method_ENCODE.toggled.connect(lambda: self.setMethod('ENCODE'))
+        # method_ONEHOTCODE
+        self.method_ONEHOTCODE.setText('Encode Category using One-Hot-Code')
+        self.method_ONEHOTCODE.toggled.connect(lambda: self.setMethod('ONEHOTCODE'))
+
+        # add to queue button
+        self.addToQueueButton.setFixedSize(100, 35)
+        self.addToQueueButton.clicked.connect(self.addToQueue)
+        buttonLayout = QHBoxLayout(self)
+        buttonLayout.addStretch(1)
+        buttonLayout.addWidget(self.addToQueueButton)
+        # right layout
+        self.rightLayout.addWidget(self.methodGroup)
+        self.rightLayout.addStretch(1)
+        self.rightLayout.addLayout(buttonLayout)
+
+        # init columns
+        if self.columns:
+            self.checkCustomFeatures.setChecked(True)
+            for i in self.columns:
+                self.featureList.append(self.processQ.features[i])
+
+    def addToQueue(self):
+        self.prepareData()
+        if self.method:
+            if self.method == 'FILL_VALUE':
+                if self.value is None:
+                    QMessageBox.warning(self, 'warning', 'Please set a filling value', QMessageBox.Ok)
+                    return
+            self.accept()
+        else:
+            QMessageBox.warning(self, 'warning', 'Please select a filling method', QMessageBox.Ok)
+
+    def setApplyAllRows(self, value):
+        self.applyAllRows = value
+
+    def setFeatures(self):
+        self.featureList.clear()
+        if self.checkAllCategoricalFeatures.isChecked():
+            self.featureMethod = 'Categorical Features'
+            for f in self.processQ.categoricalFeatures:
+                self.featureList.append(f)
+
+    def setMethod(self, value):
+        self.method = value
+
+    def prepareData(self):
+        if self.checkAllCategoricalFeatures.isChecked():
+            self.applyFeatures = self.processQ.categoricalFeatures
+        else:
+            s = self.featureList.toPlainText()
+            self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+
+        if not self.checkAllRows:
+            s = self.rowList.toPlainText()
+            self.applyRows = [int(i) for i in s.split(',')]
+        else:
+            self.applyRows = self.processQ.trainSet.index.tolist()
+
+        self.param['applyFeatures'] = self.applyFeatures
+        self.param['applyRows'] = self.applyRows
+        self.param['method'] = self.method
+
+    def addProcess(self):
+        describe = {
+            'ENCODE': 'Encode and replace' + self.featureMethod + '',
+            'ONEHOTCODE': 'Encode and replace' + self.featureMethod + ' using OntHotCode'
+        }
+        # index = self.processQ.addProcess(self.processQ.fillNA, param=self.param)
+        # self.processQ.addDescribe(index, 'fillNA', describe[self.method])
+        return self.processQ.encodeCategory, self.param, 'encode', describe[self.method]
 
 
 class testDialog(QDialog):

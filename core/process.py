@@ -146,24 +146,48 @@ class processQueue(Process):
             self.currentProcessIndex = processQueueID
             self.sendQueue.put(('CUR_FUNC', self.id, self.currentProcessIndex))
             self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 0))
-            func(**param)
+            # run process func
+            ret = func(**param)
+            # save result for next processing
+            self.trainSet = ret[0]
+            if len(ret) > 1:
+                self.testSet = ret[1]
+            print(self.trainSet.Sex)
             self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 100))
             print(self.currentProcessIndex, totalProgress)
         self.sendQueue.put(('FIN', self.id, None))
         print('FIN:', self.pid)
 
-    # data process func
+    # data process func #####################################
     # fill na
-    def fillNA(self, applyFeatures, applyRows, method, value):
+    def fillNA(self, applyFeatures, applyRows, method, value=0):
+        res = []
         try:
             targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
             for d in targetList:
                 if method == 'FILL_VALUE':
-                    d.loc[applyRows, applyFeatures].fillna(value=value, inplace=True)
+                    filledValue = value
+                elif method == 'FILL_MEAN':
+                    filledValue = d.loc[applyRows, f].mean()
+                elif method == 'FILL_CLASS_MEAN':
+                    filledValue = d.loc[applyRows, f].mean()
+                elif method == 'FILL_MEDIAN':
+                    filledValue = d.loc[applyRows, f].median()
+                elif method == 'FILL_BAYESIAN':
+                    raise Exception('not implemented')
+                elif method == 'IGNORE':
+                    filledValue = None
+                elif method == 'DELETE':
+                    filledValue = None
+                    d = d.drop(applyFeatures, axis=1)
+                if filledValue:
+                    for f in applyFeatures:
+                        d.loc[applyRows, f].fillna(value=filledValue, inplace=True)
+                res.append(d)
         except Exception as e:
             return e
         else:
-            return 0
+            return res
 
     # encode category
     def encodeCategory(self, applyFeatures, applyRows, method='ENCODE'):
@@ -187,6 +211,7 @@ class processQueue(Process):
                 res.append(d)
         return res
 
+    # data transform
     def dataTransform(self, applyFeatures, applyRows, method):
         targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
         res = []
@@ -205,6 +230,47 @@ class processQueue(Process):
                 d.loc[applyRows, applyFeatures] = d.loc[applyRows, applyFeatures].apply(lambda x: np.cbrt(x))
             res.append(d)
         return res
+
+    # normalization
+    def normalization(self, applyFeatures, applyRows, method):
+        targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
+        res = []
+        for d in targetList:
+            if method == 'MIN_MAX_NORM':  # Rescaling values of range [0,1]
+                pass
+            elif method == 'MEAN_NORM':  # This distribution will have values between -1 and 1with μ=0
+                pass
+            elif method == 'Z_SCORE':  # Standardization
+                pass
+            elif method == 'UNIT_VECTOR':  # values of range [0,1]
+                pass
+            elif method == 'DECIMAL_SCALING':
+                pass
+        return res
+
+    # Ordinal Data: Ordinal data is a categorical type, order
+    def ordinalData(self, applyFeatures, applyRows, method):
+        # add order to data
+        targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
+        res = []
+        for d in targetList:
+            if method == '':
+                pass
+        return res
+
+    # Interval scales
+    def intervalData(self, applyFeatures, applyRows, method):
+        # add order to data
+        targetList = [self.trainSet] if self.trainSetOnly else [self.trainSet, self.testSet]
+        res = []
+        for d in targetList:
+            if method == '':
+                pass
+        return res
+
+    # Decompose data
+    #
+    #########################################################
 
     def sleep(self, seconds):
         time.sleep(seconds)

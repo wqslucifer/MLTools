@@ -12,7 +12,7 @@ from PyQt5.QtGui import QColor, QFont, QTextCursor, \
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from costomTools.customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
 from costomTools.customLayout import FlowLayout
-from core.processSettingDialogs import fillNADialog, logTransformDialog
+from core.processSettingDialogs import fillNADialog, logTransformDialog, encodeDialog
 from core.management.processManager import processManagerDialog
 from costomTools.SwitchButton import switchButton
 import pandas as pd
@@ -784,8 +784,12 @@ class DataTabWidget(QWidget):
         # process for column
         processMenu = QMenu('Process', self)
         p1 = QAction('Fill NA', self)
-        p1.triggered.connect(lambda: self.fillNA(point))
-        processMenu.addActions([p1])
+        p1.triggered.connect(lambda: self.popSetting('fillNA', point))
+        p2 = QAction('Encode Category', self)
+        p2.triggered.connect(lambda: self.popSetting('encodeCategory', point))
+        p3 = QAction('log Transform', self)
+        p3.triggered.connect(lambda: self.popSetting('logTrans', point))
+        processMenu.addActions([p1, p2, p3])
         self.dataExplorerPopMenu.addMenu(processMenu)
 
         # test action
@@ -840,13 +844,21 @@ class DataTabWidget(QWidget):
         self.processTabModel.addProcess()
 
     # process setting
-    def popSetting(self, processName: str):
+    def popSetting(self, processName: str, point=None):
+        columns = None
+        if point:
+            modelIndexList = self.dataExplorer.selectionModel().selectedColumns()
+            columns = [modelIndexList[i].column() for i in range(len(modelIndexList))]
         if processName == 'fillNA':
-            dialog = fillNADialog(self.pq, None, parent=self)
+            dialog = fillNADialog(self.pq, columns, parent=self)
             dialog.show()
             dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
-        if processName == 'logTrans':
-            dialog = logTransformDialog(self.pq, parent=self)
+        elif processName == 'logTrans':
+            dialog = logTransformDialog(self.pq, columns, parent=self)
+            dialog.show()
+            dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
+        elif processName == 'encodeCategory':
+            dialog = encodeDialog(self.pq, columns, parent=self)
             dialog.show()
             dialog.accepted.connect(lambda: self.addDataProcess(*dialog.addProcess()))
 
@@ -886,12 +898,6 @@ class DataTabWidget(QWidget):
 
     def collapseOutputTab(self):
         self.outputTab.collapseStacks()
-
-    def fillNA(self, point: QPoint):
-        modelIndexList = self.dataExplorer.selectionModel().selectedColumns()
-        columns = [modelIndexList[i].column() for i in range(len(modelIndexList))]
-        dialog = fillNADialog(self.pq, columns, parent=self)
-        dialog.show()
 
 
 class queueTabWidget(QWidget):
