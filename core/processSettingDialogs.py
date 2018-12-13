@@ -252,7 +252,12 @@ class fillNADialog(QDialog):
             self.applyFeatures = self.processQ.categoricalFeatures
         else:
             s = self.featureList.toPlainText()
-            self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            if ',' in s:
+                self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            elif '\n' in s:
+                self.applyFeatures = [i.strip('\'') for i in s.split('\n')]
+            else:
+                self.applyFeatures = [s]
 
         if not self.checkAllRows:
             s = self.rowList.toPlainText()
@@ -445,7 +450,6 @@ class logTransformDialog(QDialog):
             for i in self.columns:
                 self.featureList.append(self.processQ.features[i])
 
-
     def addToQueue(self):
         if self.method:
             self.prepareData()
@@ -482,7 +486,12 @@ class logTransformDialog(QDialog):
             self.applyFeatures = self.processQ.numericFeatures
         else:
             s = self.featureList.toPlainText()
-            self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            if ',' in s:
+                self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            elif '\n' in s:
+                self.applyFeatures = [i.strip('\'') for i in s.split('\n')]
+            else:
+                self.applyFeatures = [s]
 
         if not self.checkAllRows:
             s = self.rowList.toPlainText()
@@ -678,7 +687,12 @@ class encodeDialog(QDialog):
             self.applyFeatures = self.processQ.categoricalFeatures
         else:
             s = self.featureList.toPlainText()
-            self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            if ',' in s:
+                self.applyFeatures = [i.strip('\'') for i in s.split(',')]
+            elif '\n' in s:
+                self.applyFeatures = [i.strip('\'') for i in s.split('\n')]
+            else:
+                self.applyFeatures = [s]
 
         if not self.checkAllRows:
             s = self.rowList.toPlainText()

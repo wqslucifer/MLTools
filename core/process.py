@@ -149,12 +149,12 @@ class processQueue(Process):
             # run process func
             ret = func(**param)
             # save result for next processing
+            self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 100))
+            print(self.currentProcessIndex, totalProgress)
             self.trainSet = ret[0]
             if len(ret) > 1:
                 self.testSet = ret[1]
             print(self.trainSet.Sex)
-            self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 100))
-            print(self.currentProcessIndex, totalProgress)
         self.sendQueue.put(('FIN', self.id, None))
         print('FIN:', self.pid)
 
@@ -180,9 +180,11 @@ class processQueue(Process):
                 elif method == 'DELETE':
                     filledValue = None
                     d = d.drop(applyFeatures, axis=1)
-                if filledValue:
+                if filledValue is not None:
                     for f in applyFeatures:
-                        d.loc[applyRows, f].fillna(value=filledValue, inplace=True)
+                        if d.loc[:, f].dtype == 'object':
+                            filledValue = str(filledValue)
+                        d.loc[applyRows, f] = d.loc[applyRows, f].fillna(value=filledValue)
                 res.append(d)
         except Exception as e:
             return e
@@ -200,11 +202,12 @@ class processQueue(Process):
                 d = pd.concat([d, dummies], axis=1)
                 d = d.drop(applyFeatures, axis=1)
                 res.append(d)
-            pass
         elif method == 'ENCODE':
             encoderList = [preprocessing.LabelEncoder() for _ in range(len(applyFeatures))]
             for i, f in enumerate(applyFeatures):
                 encoderList[i].fit(self.trainSet.loc[applyRows, f])
+            self.sendQueue.put(('PROGRESS', self.id, self.currentProcessIndex, 50))
+            time.sleep(2)
             for d in targetList:
                 for i, f in enumerate(applyFeatures):
                     d.loc[applyRows, f] = encoderList[i].transform(d.loc[applyRows, f])
