@@ -198,7 +198,7 @@ class processQueue(Process):
         res = []
         if method == 'ONEHOTCODE':
             for d in targetList:
-                dummies = pd.get_dummies(d.loc[applyRows, applyFeatures], dummy_na=True)
+                dummies = pd.get_dummies(d.loc[applyRows, applyFeatures].astype('object'), dummy_na=True)
                 d = pd.concat([d, dummies], axis=1)
                 d = d.drop(applyFeatures, axis=1)
                 res.append(d)
