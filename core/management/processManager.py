@@ -4,7 +4,7 @@ import pickle
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon, QCursor, QCloseEvent
-from PyQt5.QtCore import Qt, QAbstractTableModel, pyqtSignal, QModelIndex, QVariant, QPoint
+from PyQt5.QtCore import Qt, QAbstractTableModel, pyqtSignal, QModelIndex, QVariant, QPoint, QItemSelection
 
 from core.project import ml_project
 import GENERAL
@@ -24,8 +24,10 @@ class processManagerDialog(QDialog):
         self.processTable = QTableView(self)
         self.tableModel = functionModel(self)
         self.processTablePopMenu = QMenu(self)
+        self.MLProject = MLProject
         # tool bar
         self.addProcessAction = None
+        self.importProcessAction = None
         # data
         self.processList = []
         self.processDict = set()
@@ -56,12 +58,18 @@ class processManagerDialog(QDialog):
         self.addProcessAction = QAction(QIcon('./res/add_red_small.ico'), 'add process', self)
         self.addProcessAction.setStatusTip('add process')
         self.addProcessAction.triggered.connect(self.addProcess)
-        self.toolBar.addAction(self.addProcessAction)
+
+        self.importProcessAction = QAction(QIcon('./res/import.ico'), 'import process', self)
+        self.importProcessAction.setStatusTip('import process')
+        self.importProcessAction.triggered.connect(self.importProcess)
+        self.importProcessAction.setEnabled(False)
+        self.toolBar.addActions([self.addProcessAction, self.importProcessAction])
 
         # table
         self.processTable.setModel(self.tableModel)
         self.processTable.autoScrollMargin()
         self.processTable.setSelectionBehavior(QTableView.SelectRows)
+        self.processTable.selectionModel().selectionChanged.connect(self.itemSelected)
         # table double click
         self.processTable.doubleClicked.connect(self.editDescribe)
         self.tableModel.notEmpty.connect(lambda: self.setTableHeaderStyle())
@@ -94,6 +102,16 @@ class processManagerDialog(QDialog):
                     self.processDict.add(f['ID'])
             self.tableModel.addProcessList(self.processList)
         self.saveProcessList()
+
+    def importProcess(self):
+        pass
+
+    def itemSelected(self, selected: QItemSelection, deselected: QItemSelection):
+        print(selected, deselected)
+        if selected.count() == 0:
+            self.importProcessAction.setEnabled(False)
+        else:
+            self.importProcessAction.setEnabled(True)
 
     def delProcess(self, point: QPoint):
         if point:
