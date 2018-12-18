@@ -15,7 +15,6 @@ GENERAL.init()
 class processManagerDialog(QDialog):
     def __init__(self, MLProject: ml_project, parent=None):
         super(processManagerDialog, self).__init__(parent=parent)
-        self.hash_md5 = hashlib.md5()
         self.installDir = GENERAL.get_value('INSTALL_DIR')
         self.mainLayout = QVBoxLayout(self)
         self.upperLayout = QVBoxLayout(self)
@@ -63,6 +62,8 @@ class processManagerDialog(QDialog):
         self.processTable.setModel(self.tableModel)
         self.processTable.autoScrollMargin()
         self.processTable.setSelectionBehavior(QTableView.SelectRows)
+        # table double click
+        self.processTable.doubleClicked.connect(self.editDescribe)
         self.tableModel.notEmpty.connect(lambda: self.setTableHeaderStyle())
         self.loadProcessList()
 
@@ -87,8 +88,7 @@ class processManagerDialog(QDialog):
         if r == QDialog.Accepted:
             for i, f in enumerate(dialog.functionList):
                 f['describe'] = ''
-                self.hash_md5.update((f['name'] + f['path']).encode('UTF-8'))
-                f['ID'] = self.hash_md5.hexdigest()
+                f['ID'] = hashlib.new('md5', ((f['name'] + f['path']).encode('UTF-8'))).hexdigest()
                 if f['ID'] not in self.processDict:
                     self.processList.insert(index + i, f)
                     self.processDict.add(f['ID'])
@@ -96,12 +96,16 @@ class processManagerDialog(QDialog):
         self.saveProcessList()
 
     def delProcess(self, point: QPoint):
-        index = self.processTable.indexAt(point)
-        self.tableModel.beginRemoveRows(QModelIndex(), index.row(), index.row())
-        p = self.processList.pop(index.row())
-        self.tableModel.endRemoveRows()
-        self.processDict.remove(p['ID'])
+        if point:
+            modelIndexList = self.processTable.selectionModel().selectedRows()
+            modelIndex = [modelIndexList[i].row() for i in range(len(modelIndexList))]
+        self.tableModel.beginResetModel()
+        for row in modelIndex:
+            p = self.processList.pop(row)
+            self.processDict.remove(p['ID'])
         self.saveProcessList()
+        self.tableModel.rows -= len(modelIndex)
+        self.tableModel.endResetModel()
 
     def setTableHeaderStyle(self):
         self.processTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -131,12 +135,14 @@ class processManagerDialog(QDialog):
         self.processTablePopMenu.exec(QCursor.pos())
 
     def editDescribe(self, point: QPoint):
-        index = self.processTable.indexAt(point)
-        print(index.row(), index.column())
-        dialog = describeEditDialog(self.processList[index.row()]['describe'], self)
+        if isinstance(point, QPoint):
+            row = self.processTable.indexAt(point).row()
+        elif isinstance(point, QModelIndex):
+            row = point.row()
+        dialog = describeEditDialog(self.processList[row]['describe'], self)
         r = dialog.exec_()
         if r == QDialog.Accepted:
-            self.processList[index.row()]['describe'] = dialog.describe
+            self.processList[row]['describe'] = dialog.describe
             self.tableModel.update()
 
     def editSource(self, point: QPoint):

@@ -154,7 +154,6 @@ class processQueue(Process):
             self.trainSet = ret[0]
             if len(ret) > 1:
                 self.testSet = ret[1]
-            print(self.trainSet.Sex)
         self.sendQueue.put(('FIN', self.id, None))
         print('FIN:', self.pid)
 
