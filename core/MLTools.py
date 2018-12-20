@@ -8,10 +8,10 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtCore
 from PyQt5.QtGui import QFont, QIcon
-from costomTools.customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, ResultWidget, \
+from customTools.customWidget import ModelWidget, DataWidget, ProjectWidget, ScriptWidget, ResultWidget, \
     ImageDataWidget
-from costomTools.customLayout import FlowLayout
-from costomTools.tabWidget import DataTabWidget, IpythonTabWidget, ModelTabWidget, \
+from customTools.customLayout import FlowLayout
+from customTools.tabWidget import DataTabWidget, IpythonTabWidget, ModelTabWidget, \
     ImageDataTabWidget, queueTabWidget, scriptTabWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QEvent
@@ -19,7 +19,7 @@ from PyQt5.QtCore import QEvent
 from core.CreateModel import createModelDialog
 from core.management.processManager import processManagerDialog
 from core.management.modelManager import modelManagerDialog
-from costomTools.SwitchButton import switchButton
+from customTools.SwitchButton import switchButton
 from core.model import ml_model
 from core.project import ml_project
 from core.management.management_ import manageProcess
@@ -83,6 +83,7 @@ class MainFrame(QMainWindow):
         # MLTools location
         self.curDir = os.getcwd()
         GENERAL.set_value('INSTALL_DIR', self.curDir)
+        GENERAL.set_value('TABWINDOW', self.tabWindow)
 
     def initUI(self):
         # set main layout and splitter
@@ -336,6 +337,7 @@ class MainFrame(QMainWindow):
         scrollarea.setVerticalScrollBar(scrollbar)
         scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         dw.collapseOutputTab()
+        GENERAL.set_value('OPENED_DATA', self.tabList[1:])
 
     def addScriptTab(self, scriptFile: str):
         scrollarea = QScrollArea(self)
@@ -521,6 +523,7 @@ class MainFrame(QMainWindow):
             self.tabWindow.removeTab(index)
             if isinstance(temp, queueTabWidget):
                 self.queueTab = temp
+        GENERAL.set_value('OPENED_DATA', self.tabList[1:])
 
     def onPopNewIpythonTab(self, value):
         self.popNewIpythonTab = value
@@ -596,7 +599,7 @@ class MainFrame(QMainWindow):
         '''
 
     def openProcessManager(self):
-        dialog = processManagerDialog(self.MLProject, self)
+        dialog = processManagerDialog(None, self)
         dialog.exec_()
 
 # class createModelDialog(QDialog):

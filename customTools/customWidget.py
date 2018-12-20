@@ -10,7 +10,7 @@ from PyQt5.QtGui import QPainter, QPen, QColor, QFont, QPainterPath, QIcon, \
     QMouseEvent, QStandardItemModel, QPaintEvent, QImage, QPixmap, QDrag, QDragEnterEvent, QDragMoveEvent, QTextOption, \
     QDropEvent
 
-from costomTools.customLayout import FlowLayout
+from customTools.customLayout import FlowLayout
 from core.process import processQueue
 
 from core.model import ml_model, modelResult

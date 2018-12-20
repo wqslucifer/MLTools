@@ -10,11 +10,11 @@ from PyQt5.QtCore import Qt, QPoint, pyqtSignal, pyqtSlot, QTimer, QUrl, QDir, \
 from PyQt5.QtGui import QColor, QFont, QTextCursor, \
     QCursor, QIcon, QSyntaxHighlighter, QTextCharFormat
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from costomTools.customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
-from costomTools.customLayout import FlowLayout
-from core.processSettingDialogs import fillNADialog, logTransformDialog, encodeDialog
 from core.management.processManager import processManagerDialog
-from costomTools.SwitchButton import switchButton
+from customTools.customWidget import CollapsibleTabWidget, ImageViewer, DragTableView, customProcessModel
+from customTools.customLayout import FlowLayout
+from core.processSettingDialogs import fillNADialog, logTransformDialog, encodeDialog
+from customTools.SwitchButton import switchButton
 import pandas as pd
 import numpy as np
 import subprocess
@@ -867,6 +867,9 @@ class DataTabWidget(QWidget):
         self.pq.addDescribe(index, 'Delay', 'Delay: sleep 10s')
         self.processTabModel.addProcess()
 
+    def importProcess(self):
+        pass
+
     def addToQueue(self):
         if len(self.pq.processQ) == 0:
             QMessageBox.information(self, 'Empty Process', 'Please Add Process', QMessageBox.Ok)
@@ -893,7 +896,7 @@ class DataTabWidget(QWidget):
             self.mainTab.setCurrentIndex(2)
 
     def popFuncManager(self):
-        dialog = processManagerDialog(self)
+        dialog = processManagerDialog(self, self)
         dialog.exec_()
 
     def collapseOutputTab(self):

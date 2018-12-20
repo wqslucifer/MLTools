@@ -4,16 +4,18 @@ import pickle
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon, QCursor, QCloseEvent
-from PyQt5.QtCore import Qt, QAbstractTableModel, pyqtSignal, QModelIndex, QVariant, QPoint, QItemSelection
+from PyQt5.QtCore import Qt, QAbstractTableModel, pyqtSignal, QModelIndex, QVariant, QPoint, QItemSelection, \
+    QSignalMapper, QObject
+
+import GENERAL
 
 from core.project import ml_project
-import GENERAL
 
 GENERAL.init()
 
 
 class processManagerDialog(QDialog):
-    def __init__(self, MLProject: ml_project, parent=None):
+    def __init__(self, dataTab=None, parent=None):
         super(processManagerDialog, self).__init__(parent=parent)
         self.installDir = GENERAL.get_value('INSTALL_DIR')
         self.mainLayout = QVBoxLayout(self)
@@ -24,18 +26,26 @@ class processManagerDialog(QDialog):
         self.processTable = QTableView(self)
         self.tableModel = functionModel(self)
         self.processTablePopMenu = QMenu(self)
-        self.MLProject = MLProject
+        self.importMenu = QMenu(self)
+        self.signalMapper = QSignalMapper(self)
+        # self.MLProject = MLProject
+        self.openedData = GENERAL.get_value('OPENED_DATA')
+        self.MainTabWindow = GENERAL.get_value('TABWINDOW')
         # tool bar
         self.addProcessAction = None
         self.importProcessAction = None
         # data
         self.processList = []
         self.processDict = set()
+        self.dataTab = dataTab
+        self.targetDataset = dataTab.filename if dataTab else None
         # self.curDir = GENERAL.get_value('INSTALL_DIR')
         self.initUI()
         self.initRightClickMenu()
 
     def initUI(self):
+        if self.targetDataset:
+            print(self.targetDataset)
         self.setLayout(self.mainLayout)
         self.setMinimumSize(800, 600)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -75,6 +85,9 @@ class processManagerDialog(QDialog):
         self.tableModel.notEmpty.connect(lambda: self.setTableHeaderStyle())
         self.loadProcessList()
 
+        # init mapper
+        self.signalMapper.mapped[int].connect(self.addProcess)
+
     def loadProcessList(self):
         localProcessFile = os.path.join(self.installDir, 'local', 'localProcess.ml')
         if os.path.exists(localProcessFile):
@@ -104,11 +117,35 @@ class processManagerDialog(QDialog):
         self.saveProcessList()
 
     def importProcess(self):
+        # import process to process list
+        if self.dataTab:
+            pass
+        else:
+            self.importMenu.clear()
+            tabList = []
+            for index, tab in enumerate(self.openedData):
+                t = QAction(os.path.basename(tab.filename), self)
+                t.triggered.connect(self.signalMapper.map)
+                self.signalMapper.setMapping(t, index)
+                tabList.append(t)
+
+            self.importMenu.addActions(tabList)
+            # pop menu
+            self.importMenu.exec(QCursor.pos())
+
+    def addProcess(self, index):
+        tab = self.openedData[index]
+        print(tab.filename, index)
+
+    def lightUpDataTab(self, index):
+        """
+        future feature: light up tab in the main tab window when mouse hover on the button
+        """
         pass
 
     def itemSelected(self, selected: QItemSelection, deselected: QItemSelection):
         print(selected, deselected)
-        if selected.count() == 0:
+        if selected.count() == 0 or not self.openedData or len(self.openedData) == 0:
             self.importProcessAction.setEnabled(False)
         else:
             self.importProcessAction.setEnabled(True)
